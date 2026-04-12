@@ -2,9 +2,7 @@
 id: T9
 title: ether-forge worktree and commit subcommands
 size: M
-status: blocked
-depends_on:
-  - T7
+status: ready
 priority: 7
 ---
 

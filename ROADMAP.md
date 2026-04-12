@@ -195,6 +195,31 @@ Today `/dev` step 17 says "address findings" — the main agent decides, and `bl
 
 Non-goals: reviewer model change (stays on haiku), telemetry/velocity tracking, parallel-`/dev` coordination.
 
+## Phase 0.5.6 — Analysis skill grounding
+
+Goal: the analysis-oriented skills (`/roadmap`, `/close`, `/brainstorm`) currently call zero `ether-forge` subcommands. They re-read files and reason from stale context instead of querying the source of truth that `/dev` and `/groom` already rely on. Close that gap so every skill treats `ether-forge` as a shared query layer, not a `/dev`+`/groom` private tool.
+
+Observed gaps from a pass over `.claude/skills/*/SKILL.md`:
+
+- **`/roadmap`** opens without grounding in backlog state. Should start with `ether-forge status` + `ether-forge list` so strategic edits reflect what's actually ready/blocked, and optionally `ether-forge groom --json` (dry-run) to see coverage drift vs this file before editing it.
+- **`/close`** never summarises backlog deltas in its wrap-up. A single `ether-forge status` call at the end gives "X ready, Y blocked, Z done this session" for free.
+- **`/brainstorm`** never checks whether an idea already exists. `ether-forge search <keyword>` and `ether-forge deps T<n>` prevent duplicate suggestions and surface blockers on adjacent work.
+- **`/backlog`** uses `list`, `status`, `validate`, `done` but not `get`, `search`, `deps`, or `next` — all natural day-to-day CRUD ops currently re-implemented in prose.
+
+Cleanup opportunity: `ether-forge worktree T<n>` is effectively dead code in every agent-driven skill because `EnterWorktree` is the only primitive that re-roots Glob/Grep/Read/Edit. The subcommand stays useful for humans invoking the CLI from a shell, so it's kept — but no skill should reach for it. Document that explicitly so future edits don't reintroduce it.
+
+Non-goals: new `ether-forge` subcommands (the surface is already sufficient), changes to `/dev` or `/groom` (they're saturated), skill rewrites beyond wiring the missing calls.
+
+### Ordering
+
+1. `/close` wiring (S) — one-line edit, immediate value in every wrap-up.
+2. `/roadmap` grounding (S) — `status` + `list` preamble; `groom --json` optional follow-up.
+3. `/brainstorm` wiring (S) — `search`/`deps` as idea-validation primitives.
+4. `/backlog` fill-in (S) — expose `get`, `search`, `deps`, `next` as first-class verbs.
+5. Documentation note on `ether-forge worktree` vs `EnterWorktree` (S, docs only).
+
+All five are independent S-sized skill edits with no Rust work.
+
 ## Phase 1 — Core ECS
 
 Goal: a minimal but functional ECS with World, Entity, Component storage, and basic queries.

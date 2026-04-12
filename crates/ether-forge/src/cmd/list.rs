@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn sorts_priority_then_id() {
-        let mut tasks = vec![
+        let mut tasks = [
             task("T10", Some(5), Status::Ready),
             task("T2", Some(1), Status::Ready),
             task("T3", None, Status::Ready),

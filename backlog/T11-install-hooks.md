@@ -8,5 +8,5 @@ priority: 8
 
 ## Sub-steps
 
-- [ ] `install-hooks` in `crates/ether-forge/src/cmd/install_hooks.rs` — write `.git/hooks/pre-commit` that invokes `ether-forge check`; idempotent (detects and replaces its own marker)
-- [ ] Smoke-test the hook installer in a fresh temp repo inside an integration test
+- [x] `install-hooks` in `crates/ether-forge/src/cmd/install_hooks.rs` — write `.git/hooks/pre-commit` that invokes `ether-forge check`; idempotent (detects and replaces its own marker)
+- [x] Smoke-test the hook installer in a fresh temp repo inside an integration test

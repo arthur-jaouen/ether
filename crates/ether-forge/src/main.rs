@@ -100,6 +100,12 @@ enum Command {
         #[arg(long, default_value = "backlog")]
         backlog_dir: PathBuf,
     },
+    /// Install the pre-commit git hook that runs `ether-forge check`.
+    InstallHooks {
+        /// Repository root (defaults to the current directory).
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -131,5 +137,6 @@ fn main() -> anyhow::Result<()> {
             commit,
             backlog_dir,
         }) => cmd::done::run(&backlog_dir, &id, commit.as_deref()),
+        Some(Command::InstallHooks { repo_root }) => cmd::install_hooks::run(&repo_root),
     }
 }

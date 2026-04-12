@@ -64,7 +64,7 @@ All commands run from `/home/arthur/ether`.
 11. Apply auto-fixes via `ether-forge groom --apply`. Apply proposed changes (new task files, edits, ROADMAP.md updates) directly in the worktree.
 12. `ether-forge validate` to confirm integrity before committing.
 13. Commit with a descriptive message.
-14. Ask whether to merge into `main` and clean up the worktree.
+14. Ask whether to merge into `main` and clean up the worktree. If `git merge --ff-only` fails because `main` advanced during the groom, **rebase the groom branch onto main** (dropping hunks for files that no longer exist, e.g. tasks shipped in the meantime), then ff-merge. Never replay the edits directly on main — that orphans the branch commit and forces a destructive `git branch -D` later.
 
 ## Rules
 

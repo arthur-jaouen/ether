@@ -22,11 +22,7 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
 
 ## Claim + Isolate
 
-8. Create a worktree and branch via ether-forge (it derives the slug from the task title):
-   ```bash
-   ether-forge worktree T<n>
-   cd worktrees/T<n>
-   ```
+8. Call `EnterWorktree` with `name: "dev-T<n>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so work in place on the current branch.
 9. All further work runs inside the worktree.
 
 ## Investigate (calibrate to task size)
@@ -53,7 +49,7 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
 
 Review subagent prompt (pass the task ID and worktree path only — the agent fetches the diff itself so it never enters the parent context):
 
-> Review task **T<n>** in worktree `/home/arthur/ether/worktrees/T<n>-<slug>`.
+> Review task **T<n>** in worktree `/home/arthur/ether/.claude/worktrees/dev-T<n>`.
 >
 > `cd` into that worktree, read `CLAUDE.md` and `.claude/rules/*.md`, then run `git diff main` to fetch the change. The task description is: "<paste backlog item title + body>".
 >
@@ -76,15 +72,12 @@ Review subagent prompt (pass the task ID and worktree path only — the agent fe
     ether-forge done T<n> --commit $(git rev-parse --short HEAD)
     ```
     This moves the file to `backlog/done/`, strips sub-steps, and unblocks dependents. Commit the resulting backlog changes.
-20. Return to the main checkout and clean up:
+20. Report: branch name, what changed, `ether-forge check` result.
+21. **Pre-merge hygiene:** before exiting the worktree, confirm the session is still inside it. `ExitWorktree` with `action: "keep"` to return to the main checkout, then `git status` on main. If dirty, warn instead of merging.
+22. Use the `AskUserQuestion` tool to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation:
     ```bash
-    cd /home/arthur/ether
-    git worktree remove worktrees/T<n>
+    git merge --ff-only dev-T<n>
+    git worktree remove .claude/worktrees/dev-T<n>
+    git branch -d dev-T<n>
     ```
-21. Report: branch name, what changed, `ether-forge check` result.
-22. **Pre-merge hygiene:** `git status` on main working tree. If dirty, warn instead of merging.
-23. Use the `AskUserQuestion` tool to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation:
-    ```bash
-    git merge T<n>-<slug>
-    git branch -d T<n>-<slug>
-    ```
+    Prefer the explicit `git worktree remove` + `git branch -d` pair over re-entering just to call `ExitWorktree action: "remove"` — `ExitWorktree` is scoped to the active session only.

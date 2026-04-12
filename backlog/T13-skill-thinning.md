@@ -4,7 +4,6 @@ title: Thin /dev, /groom, /backlog skills to shell out to ether-forge
 size: M
 status: blocked
 depends_on:
-  - T6
   - T9
 priority: 10
 ---

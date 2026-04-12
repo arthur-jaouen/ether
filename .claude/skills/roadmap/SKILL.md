@@ -39,8 +39,7 @@ When conversation converges:
 13. Commit in worktree.
 14. Ask if the user wants to merge into `main`. On confirmation:
     - `ExitWorktree` with `action: "keep"` to return the session to the main checkout.
-    - `git merge --ff-only roadmap-<topic>`.
-    - After a successful merge, `git worktree remove .claude/worktrees/roadmap-<topic>` and `git branch -d roadmap-<topic>`. If the user declines, leave the worktree intact (the earlier `ExitWorktree` used `keep`).
+    - `ether-forge merge roadmap-<topic>` — rebases, ff-merges, removes the worktree, and deletes the branch. If the user declines, leave the worktree intact.
 
 ## Conversation style
 

@@ -198,6 +198,26 @@ enum Command {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Merge a skill worktree into main: rebase if behind, rerun `check`,
+    /// apply the reviewer-blocker gate, ff-merge, remove worktree and branch.
+    Merge {
+        /// Task id (e.g. `T38`) or explicit branch name (e.g. `groom-2026-04-13`).
+        /// Task ids trigger the reviewer-blocker gate; branch names skip it.
+        target: String,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value_os_t = default_backlog_dir())]
+        backlog_dir: PathBuf,
+        /// Leave the worktree directory and branch in place after merging.
+        #[arg(long)]
+        keep: bool,
+        /// Bypass the reviewer-blocker gate (same semantics as `commit --force-review`).
+        #[arg(long)]
+        force_review: bool,
+        /// Explicit worktree path. If omitted, inferred from the branch
+        /// claiming the task id.
+        #[arg(long)]
+        worktree: Option<PathBuf>,
+    },
     /// Verify workspace is safe to create a skill worktree (clean main, fresh base, no stale claim).
     Preflight {
         /// Task id (optional). When set, also refuses if a branch already claims it.
@@ -271,6 +291,19 @@ fn main() -> anyhow::Result<()> {
             lang,
             path,
         }) => cmd::rewrite::run(&pattern, &to, &lang, path.as_deref()),
+        Some(Command::Merge {
+            target,
+            backlog_dir,
+            keep,
+            force_review,
+            worktree,
+        }) => cmd::merge::run(
+            &backlog_dir,
+            &target,
+            keep,
+            force_review,
+            worktree.as_deref(),
+        ),
         Some(Command::Preflight { task, backlog_dir }) => {
             cmd::preflight::run(&backlog_dir, task.as_deref())
         }

@@ -12,6 +12,7 @@ pub mod groom;
 pub mod helpers;
 pub mod install_hooks;
 pub mod list;
+pub mod merge;
 pub mod next;
 pub mod preflight;
 pub mod rewrite;

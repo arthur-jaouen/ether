@@ -78,8 +78,6 @@ Review subagent prompt (pass the worktree path and task ID only — the agent re
 22. **Pre-merge hygiene:** before exiting the worktree, confirm the session is still inside it. `ExitWorktree` with `action: "keep"` to return to the main checkout, then `git status` on main. If dirty, warn instead of merging.
 23. Use the `AskUserQuestion` tool to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation:
     ```bash
-    git merge --ff-only dev-T<n>
-    git worktree remove .claude/worktrees/dev-T<n>
-    git branch -d dev-T<n>
+    ether-forge merge T<n>
     ```
-    Prefer the explicit `git worktree remove` + `git branch -d` pair over re-entering just to call `ExitWorktree action: "remove"` — `ExitWorktree` is scoped to the active session only.
+    This collapses the ff-merge / `git worktree remove` / `git branch -d` dance into one primitive: it verifies the worktree is clean, rebases onto main if it advanced, re-runs `check`, applies the reviewer-blocker gate, ff-merges, then removes the worktree directory and deletes the branch. Pass `--keep` to leave both in place, or `--force-review` to override a blocker artifact.

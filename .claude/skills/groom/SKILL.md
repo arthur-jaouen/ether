@@ -63,8 +63,7 @@ All commands run from `/home/arthur/ether`.
 14. Commit with a descriptive message.
 15. Use `AskUserQuestion` to ask whether to merge into `main` (options: "Merge and delete" / "Keep branch"). On confirmation:
     - `ExitWorktree` with `action: "keep"` to return the session to the main checkout.
-    - `git merge --ff-only groom-YYYY-MM-DD`. If ff fails because `main` advanced, re-enter the worktree, **rebase the groom branch onto main** (dropping hunks for files that no longer exist, e.g. tasks shipped in the meantime), exit again, then ff-merge. Never replay edits directly on main — that orphans the branch commit.
-    - After a successful merge, `git worktree remove .claude/worktrees/groom-YYYY-MM-DD` and `git branch -d groom-YYYY-MM-DD`. If the user declines the merge, leave the worktree intact (the earlier `ExitWorktree` used `keep`).
+    - `ether-forge merge groom-YYYY-MM-DD` — rebases onto main if it advanced, re-runs `check`, ff-merges, removes the worktree directory, and deletes the branch in one shot. Pass the branch name directly (not a task id) so the reviewer-blocker gate is skipped. If the user declines, leave the worktree intact.
 
 ## Rules
 

@@ -28,14 +28,10 @@ pub enum Status {
 pub struct Task {
     pub id: String,
     pub title: String,
-    // FIXME(T6): `size` consumed by `list`/`next` subcommands.
-    #[allow(dead_code)]
     pub size: Size,
     pub status: Status,
     #[serde(default)]
     pub depends_on: Vec<String>,
-    // FIXME(T6): `priority` consumed by `list`/`next` subcommands.
-    #[allow(dead_code)]
     #[serde(default)]
     pub priority: Option<u32>,
     #[serde(default)]
@@ -45,7 +41,42 @@ pub struct Task {
     pub body: String,
 }
 
+impl Status {
+    /// Lowercase label matching the YAML frontmatter representation.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Status::Draft => "draft",
+            Status::Ready => "ready",
+            Status::Blocked => "blocked",
+            Status::Done => "done",
+        }
+    }
+}
+
+impl Size {
+    /// Uppercase label matching the YAML frontmatter representation.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Size::S => "S",
+            Size::M => "M",
+            Size::L => "L",
+        }
+    }
+}
+
 impl Task {
+    /// Numeric portion of the task id (e.g. `T42` → `42`). Returns `u32::MAX`
+    /// when the id is malformed so tasks with bad ids sort last.
+    pub fn numeric_id(&self) -> u32 {
+        parse_id_num(&self.id).unwrap_or(u32::MAX)
+    }
+
+    /// Ordering key used by `list` and `next`: priority ascending (missing =
+    /// last), then numeric id ascending.
+    pub fn pick_key(&self) -> (u32, u32) {
+        (self.priority.unwrap_or(u32::MAX), self.numeric_id())
+    }
+
     /// Load a single task file, splitting YAML frontmatter from markdown body.
     pub fn load(path: &Path) -> Result<Task> {
         let raw = fs::read_to_string(path)

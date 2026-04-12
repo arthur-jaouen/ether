@@ -206,7 +206,17 @@ Observed gaps from a pass over `.claude/skills/*/SKILL.md`:
 - **`/brainstorm`** never checks whether an idea already exists. `ether-forge search <keyword>` and `ether-forge deps T<n>` prevent duplicate suggestions and surface blockers on adjacent work.
 - **`/backlog`** uses `list`, `status`, `validate`, `done` but not `get`, `search`, `deps`, or `next` — all natural day-to-day CRUD ops currently re-implemented in prose.
 
-Cleanup opportunity: `ether-forge worktree T<n>` is effectively dead code in every agent-driven skill because `EnterWorktree` is the only primitive that re-roots Glob/Grep/Read/Edit. The subcommand stays useful for humans invoking the CLI from a shell, so it's kept — but no skill should reach for it. Document that explicitly so future edits don't reintroduce it.
+Cleanup: remove the `ether-forge worktree T<n>` subcommand. It's dead code in every agent-driven skill — `EnterWorktree` is the only primitive that re-roots Glob/Grep/Read/Edit, so skills never reach for the CLI version. Grep across `.claude/skills/` confirms zero callers. Drop the subcommand and its tests rather than keeping a shell-only fallback nobody uses.
+
+New forge primitive: `ether-forge preflight`. Skill worktree sessions currently hit two preventable failures — dirty `main` before `EnterWorktree` (stranded edits that break the later ff-merge) and a worktree base that's behind `main`'s HEAD (forces a rebase dance at merge time). Both checks are identical across `/dev`, `/groom`, and `/roadmap`, so they belong in forge rather than copy-pasted into each skill.
+
+`ether-forge preflight` should:
+
+- Refuse with a listing if `main`'s working tree is dirty.
+- Refuse if the current branch's merge base with `main` is not `main`'s HEAD (worktree is behind).
+- Optionally (matching `/dev` step 3): refuse if a `T*` branch already exists for a passed task ID.
+
+Each skill's setup phase then becomes a one-line `ether-forge preflight` call before `EnterWorktree`, keeping the invariants single-sourced.
 
 Non-goals: new `ether-forge` subcommands (the surface is already sufficient), changes to `/dev` or `/groom` (they're saturated), skill rewrites beyond wiring the missing calls.
 
@@ -216,9 +226,10 @@ Non-goals: new `ether-forge` subcommands (the surface is already sufficient), ch
 2. `/roadmap` grounding (S) — `status` + `list` preamble; `groom --json` optional follow-up.
 3. `/brainstorm` wiring (S) — `search`/`deps` as idea-validation primitives.
 4. `/backlog` fill-in (S) — expose `get`, `search`, `deps`, `next` as first-class verbs.
-5. Documentation note on `ether-forge worktree` vs `EnterWorktree` (S, docs only).
+5. Remove `ether-forge worktree` subcommand + tests (S, Rust).
+6. `ether-forge preflight` subcommand (M, Rust) — blocks on #5 only in the sense that both touch the CLI surface; otherwise independent.
 
-All five are independent S-sized skill edits with no Rust work.
+Items 1–5 are S-sized and independent. Item 6 is the only Rust work beyond a subcommand deletion.
 
 ## Phase 1 — Core ECS
 

@@ -47,15 +47,15 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
     - **Background:** Spawn the reviewer subagent (`subagent_type: reviewer`, `run_in_background: true`). The agent is pinned to `haiku` and owns its own tool allowlist — do not override.
     - **Foreground:** `ether-forge check` (fmt + clippy + test in one call).
 
-Review subagent prompt (pass the task ID and worktree path only — the agent fetches the diff itself so it never enters the parent context):
+Review subagent prompt (pass the worktree path and task ID only — the agent resolves its own context and fetches the diff itself, so neither the task body nor the diff ever enters the parent context):
 
 > Review task **T<n>** in worktree `/home/arthur/ether/.claude/worktrees/dev-T<n>`.
 >
-> `cd` into that worktree, read `CLAUDE.md` and `.claude/rules/*.md`, then run `git diff main` to fetch the change. The task description is: "<paste backlog item title + body>".
+> `cd` into that worktree, read `CLAUDE.md` and `.claude/rules/*.md`, run `ether-forge task T<n> --context` for the goal, then `git diff main` for the change.
 >
 > Apply the checklist in your system prompt and return a terse findings list.
 
-17. When both complete, address findings. Re-run `ether-forge check` if anything changed.
+17. When both complete, address findings. Re-run `ether-forge check` if anything changed. If the reviewer writes `target/.ether-forge/review-T<n>.json` with non-empty `blockers`, `ether-forge commit` will refuse the commit until they're resolved — pass `--force-review` only as a deliberate override (it stamps a `Reviewed-by-force: true` trailer).
 
 ## Commit
 

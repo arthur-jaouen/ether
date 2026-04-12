@@ -125,6 +125,10 @@ enum Command {
         /// Backlog directory (defaults to `./backlog`).
         #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
+        /// Bypass the reviewer-blocker gate. Appends a `Reviewed-by-force`
+        /// trailer so the override is recorded in the commit message.
+        #[arg(long)]
+        force_review: bool,
         /// Extra args forwarded to `git commit` (e.g. `-a`, additional `-m`).
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         extra: Vec<String>,
@@ -239,8 +243,9 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Commit {
             id,
             backlog_dir,
+            force_review,
             extra,
-        }) => cmd::commit::run(&backlog_dir, &id, &extra),
+        }) => cmd::commit::run(&backlog_dir, &id, &extra, force_review),
         Some(Command::Done {
             id,
             commit,

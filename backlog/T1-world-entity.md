@@ -3,6 +3,7 @@ id: T1
 title: World and Entity types
 size: M
 status: ready
+priority: 30
 ---
 
 ## Sub-steps

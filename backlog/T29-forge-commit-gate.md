@@ -1,8 +1,9 @@
 ---
 id: T29
 title: Forge commit gate on reviewer blockers
-size: S
+size: M
 status: ready
+priority: 1
 ---
 
 Make `ether-forge commit` refuse to commit when the reviewer artifact for the current task lists any blockers. Covers ROADMAP 0.5.5.3b.

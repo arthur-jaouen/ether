@@ -3,7 +3,7 @@ id: T2
 title: Component trait and sparse set storage
 size: M
 status: ready
-priority: 31
+priority: 51
 ---
 
 ## Sub-steps

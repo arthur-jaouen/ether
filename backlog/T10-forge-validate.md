@@ -2,9 +2,7 @@
 id: T10
 title: ether-forge validate subcommand
 size: M
-status: blocked
-depends_on:
-  - T5
+status: ready
 priority: 5
 ---
 

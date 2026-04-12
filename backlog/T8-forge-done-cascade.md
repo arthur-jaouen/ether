@@ -2,9 +2,7 @@
 id: T8
 title: ether-forge done subcommand with cascade rule
 size: M
-status: blocked
-depends_on:
-  - T5
+status: ready
 priority: 3
 ---
 

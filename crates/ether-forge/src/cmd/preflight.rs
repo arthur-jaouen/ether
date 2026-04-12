@@ -101,7 +101,7 @@ fn short(sha: &str) -> &str {
 /// Run preflight against the real filesystem and `git` binary.
 pub fn run(backlog_dir: &Path, task: Option<&str>) -> Result<()> {
     if let Some(id) = task {
-        super::worktree::find_task(backlog_dir, id)?;
+        crate::task::find_task(backlog_dir, id)?;
     }
 
     let main_path = main_worktree_path()?;

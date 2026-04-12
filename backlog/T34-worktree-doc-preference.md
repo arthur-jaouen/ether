@@ -10,9 +10,9 @@ priority: 3
 
 ## Sub-steps
 
-- [ ] Grep `.claude/skills/` and `backlog/` to confirm zero callers of `ether-forge worktree`.
-- [ ] Remove the `Worktree` variant from the `Command` enum in `crates/ether-forge/src/main.rs` (or wherever the clap subcommand is declared).
-- [ ] Delete the handler and any helper functions that become unused.
-- [ ] Remove or update tests covering the subcommand.
-- [ ] Update `ROADMAP.md` Phase 0 "Lifecycle subcommands" section to strike the `worktree` bullet.
-- [ ] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings` stay green.
+- [x] Grep `.claude/skills/` and `backlog/` to confirm zero callers of `ether-forge worktree`.
+- [x] Remove the `Worktree` variant from the `Command` enum in `crates/ether-forge/src/main.rs` (or wherever the clap subcommand is declared).
+- [x] Delete the handler and any helper functions that become unused.
+- [x] Remove or update tests covering the subcommand.
+- [x] Update `ROADMAP.md` Phase 0 "Lifecycle subcommands" section to strike the `worktree` bullet.
+- [x] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings` stay green.

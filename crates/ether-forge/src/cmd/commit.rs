@@ -15,7 +15,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use serde::Deserialize;
 
 use crate::cmd::check;
-use crate::cmd::worktree::find_task;
+use crate::task::find_task;
 
 const FORCE_TRAILER: &str = "Reviewed-by-force: true";
 

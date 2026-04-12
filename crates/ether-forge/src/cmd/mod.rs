@@ -19,4 +19,3 @@ pub mod search;
 pub mod status;
 pub mod task;
 pub mod validate;
-pub mod worktree;

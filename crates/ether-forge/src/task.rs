@@ -115,6 +115,46 @@ impl Task {
     }
 }
 
+/// Look up a task file by id, erroring if zero or multiple match.
+pub fn find_task(backlog_dir: &Path, id: &str) -> Result<Task> {
+    let tasks = Task::load_all(backlog_dir)?;
+    let matches: Vec<Task> = tasks.into_iter().filter(|t| t.id == id).collect();
+    match matches.len() {
+        0 => Err(anyhow!(
+            "no task found with id {id} in {}",
+            backlog_dir.display()
+        )),
+        1 => Ok(matches.into_iter().next().unwrap()),
+        _ => Err(anyhow!("multiple tasks matched id {id}")),
+    }
+}
+
+/// Derive a filesystem-safe slug from a task title.
+///
+/// Lowercased, non-alphanumeric runs collapse to a single `-`, leading and
+/// trailing dashes are trimmed. Empty titles fall back to `task`.
+pub fn slugify(title: &str) -> String {
+    let mut out = String::with_capacity(title.len());
+    let mut prev_dash = true;
+    for c in title.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    while out.ends_with('-') {
+        out.pop();
+    }
+    if out.is_empty() {
+        "task".to_string()
+    } else {
+        out
+    }
+}
+
 fn split_frontmatter(raw: &str) -> Result<(&str, &str)> {
     let rest = raw
         .strip_prefix("---\n")
@@ -200,6 +240,41 @@ mod tests {
         let tasks = Task::load_all(dir.path()).unwrap();
         let ids: Vec<_> = tasks.iter().map(|t| t.id.clone()).collect();
         assert_eq!(ids, vec!["T1", "T2", "T10"]);
+    }
+
+    #[test]
+    fn slugify_basic() {
+        assert_eq!(slugify("World and Entity types"), "world-and-entity-types");
+    }
+
+    #[test]
+    fn slugify_collapses_punctuation() {
+        assert_eq!(
+            slugify("ether-forge worktree & commit!!"),
+            "ether-forge-worktree-commit"
+        );
+    }
+
+    #[test]
+    fn slugify_handles_unicode_and_empty() {
+        assert_eq!(slugify("---"), "task");
+        assert_eq!(slugify("café au lait"), "caf-au-lait");
+    }
+
+    #[test]
+    fn find_task_errors_on_missing_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let err = find_task(dir.path(), "T99").unwrap_err();
+        assert!(format!("{err:#}").contains("no task found"));
+    }
+
+    #[test]
+    fn find_task_returns_match() {
+        let dir = tempfile::tempdir().unwrap();
+        let raw = "---\nid: T3\ntitle: Demo\nsize: S\nstatus: ready\n---\n\n";
+        fs::write(dir.path().join("T3-demo.md"), raw).unwrap();
+        let task = find_task(dir.path(), "T3").unwrap();
+        assert_eq!(task.id, "T3");
     }
 
     #[test]

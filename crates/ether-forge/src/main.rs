@@ -2,8 +2,6 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-// FIXME(T6): drop `allow(dead_code)` once a subcommand wires Task::load_all in.
-#[allow(dead_code)]
 mod task;
 
 mod cmd;
@@ -21,6 +19,12 @@ struct Cli {
 enum Command {
     /// Run the workspace verification suite (test, clippy, fmt).
     Check,
+    /// Validate backlog integrity (ids, depends_on, cycles, filenames).
+    Validate {
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+    },
     /// Mark a task done and cascade dependency updates across the backlog.
     Done {
         /// Task id (e.g. `T8`).
@@ -42,6 +46,7 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some(Command::Check) => cmd::check::run(),
+        Some(Command::Validate { backlog_dir }) => cmd::validate::run(&backlog_dir),
         Some(Command::Done {
             id,
             commit,

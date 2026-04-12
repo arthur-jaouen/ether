@@ -4,6 +4,7 @@ title: Scaffold ether-forge crate and frontmatter parser
 size: M
 status: done
 priority: 1
+commit: ca5a295
 ---
 
 Scaffolded the `ether-forge` binary crate with `clap` CLI stub and a

@@ -28,10 +28,14 @@ pub enum Status {
 pub struct Task {
     pub id: String,
     pub title: String,
+    // FIXME(T6): `size` consumed by `list`/`next` subcommands.
+    #[allow(dead_code)]
     pub size: Size,
     pub status: Status,
     #[serde(default)]
     pub depends_on: Vec<String>,
+    // FIXME(T6): `priority` consumed by `list`/`next` subcommands.
+    #[allow(dead_code)]
     #[serde(default)]
     pub priority: Option<u32>,
     #[serde(default)]

@@ -14,6 +14,7 @@ use serde::Serialize;
 
 use crate::cmd::validate::{validate, Finding};
 use crate::frontmatter::Frontmatter;
+use crate::roadmap::{self, Section};
 use crate::task::{Size, Status, Task};
 
 /// Run the groom audit. `apply` enables cascade mutation; `json` switches
@@ -111,7 +112,7 @@ fn audit(backlog_dir: &Path, roadmap_path: &Path) -> Result<GroomReport> {
         Vec::new()
     };
 
-    let sections = parse_roadmap(roadmap_path)?;
+    let sections = roadmap::parse(roadmap_path)?;
     let coverage = classify_sections(&sections, &active, &done);
     let mut flags = Vec::new();
     for task in &active {
@@ -128,84 +129,6 @@ fn audit(backlog_dir: &Path, roadmap_path: &Path) -> Result<GroomReport> {
         flags,
         cascades,
     })
-}
-
-// ---------------------------------------------------------------------------
-// ROADMAP parsing
-// ---------------------------------------------------------------------------
-
-/// A parsed ROADMAP heading used as a coverage unit.
-#[derive(Debug, Clone)]
-struct Section {
-    /// Heading text without leading hashes.
-    title: String,
-    /// Lowercased keywords extracted from the title (>=4 chars, alphanumeric).
-    keywords: Vec<String>,
-}
-
-fn parse_roadmap(path: &Path) -> Result<Vec<Section>> {
-    if !path.exists() {
-        return Ok(Vec::new());
-    }
-    let raw =
-        fs::read_to_string(path).with_context(|| format!("reading roadmap {}", path.display()))?;
-    let mut sections = Vec::new();
-    for line in raw.lines() {
-        let trimmed = line.trim_start();
-        // Only consider level-2 and level-3 headings — level-1 is the file title.
-        let title = if let Some(rest) = trimmed.strip_prefix("### ") {
-            rest
-        } else if let Some(rest) = trimmed.strip_prefix("## ") {
-            rest
-        } else {
-            continue;
-        };
-        let keywords = extract_keywords(title);
-        if keywords.is_empty() {
-            continue;
-        }
-        sections.push(Section {
-            title: title.trim().to_string(),
-            keywords,
-        });
-    }
-    Ok(sections)
-}
-
-fn extract_keywords(text: &str) -> Vec<String> {
-    // Short words and common glue carry no signal for section→task matching.
-    const STOP: &[&str] = &[
-        "the",
-        "and",
-        "for",
-        "with",
-        "from",
-        "into",
-        "that",
-        "this",
-        "than",
-        "then",
-        "phase",
-        "goal",
-        "when",
-        "what",
-        "will",
-        "over",
-        "also",
-        "only",
-        "non-goals",
-        "non",
-    ];
-    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
-        .filter_map(|w| {
-            let w = w.trim_matches('-').to_ascii_lowercase();
-            if w.len() < 4 || STOP.contains(&w.as_str()) {
-                None
-            } else {
-                Some(w)
-            }
-        })
-        .collect()
 }
 
 fn classify_sections(sections: &[Section], active: &[Task], done: &[Task]) -> Vec<CoverageEntry> {
@@ -239,22 +162,13 @@ fn classify_sections(sections: &[Section], active: &[Task], done: &[Task]) -> Ve
 }
 
 fn match_tasks<'a>(section: &Section, tasks: &'a [Task]) -> Vec<&'a Task> {
-    let mut hits = Vec::new();
-    for t in tasks {
-        let haystack = format!("{} {}", t.title, t.body).to_ascii_lowercase();
-        // Require at least two keyword hits to filter accidental one-word matches
-        // (e.g. "backlog" appearing in every task).
-        let matches = section
-            .keywords
-            .iter()
-            .filter(|k| haystack.contains(k.as_str()))
-            .count();
-        let threshold = if section.keywords.len() >= 2 { 2 } else { 1 };
-        if matches >= threshold {
-            hits.push(t);
-        }
-    }
-    hits
+    tasks
+        .iter()
+        .filter(|t| {
+            let haystack = format!("{} {}", t.title, t.body).to_ascii_lowercase();
+            roadmap::section_matches(section, &haystack)
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -566,7 +480,7 @@ mod tests {
 
     #[test]
     fn keywords_drop_stopwords_and_shorts() {
-        let k = extract_keywords("Phase 0 — ether-forge (active focus)");
+        let k = roadmap::extract_keywords("Phase 0 — ether-forge (active focus)");
         assert!(k.contains(&"ether-forge".to_string()));
         assert!(k.contains(&"active".to_string()));
         assert!(!k.iter().any(|w| w == "phase"));
@@ -637,6 +551,7 @@ mod tests {
     fn classify_sections_marks_uncovered() {
         let sections = vec![Section {
             title: "Unique nebula subsystem".to_string(),
+            body: String::new(),
             keywords: vec!["nebula".into(), "subsystem".into()],
         }];
         let coverage = classify_sections(&sections, &[], &[]);
@@ -647,6 +562,7 @@ mod tests {
     fn classify_sections_marks_covered_on_match() {
         let sections = vec![Section {
             title: "World and Entity".to_string(),
+            body: String::new(),
             keywords: vec!["world".into(), "entity".into()],
         }];
         let active = vec![mk_task(

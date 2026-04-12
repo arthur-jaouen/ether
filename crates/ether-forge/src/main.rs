@@ -6,6 +6,7 @@ mod task;
 
 mod cmd;
 mod frontmatter;
+mod roadmap;
 
 /// Ether development process CLI — backlog management and workflow automation.
 #[derive(Parser, Debug)]
@@ -47,6 +48,20 @@ enum Command {
         /// Backlog directory (defaults to `./backlog`).
         #[arg(long, default_value = "backlog")]
         backlog_dir: PathBuf,
+    },
+    /// Print a task file, optionally appending its linked ROADMAP section.
+    Task {
+        /// Task id (e.g. `T21`).
+        id: String,
+        /// Also emit the matching ROADMAP section as one blob.
+        #[arg(long)]
+        context: bool,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+        /// Path to ROADMAP.md (defaults to `./ROADMAP.md`).
+        #[arg(long, default_value = "ROADMAP.md")]
+        roadmap: PathBuf,
     },
     /// Case-insensitive substring match on id, title, and body.
     Search {
@@ -174,6 +189,12 @@ fn main() -> anyhow::Result<()> {
         }) => cmd::list::run(&backlog_dir, status.as_deref()),
         Some(Command::Next { backlog_dir }) => cmd::next::run(&backlog_dir),
         Some(Command::Get { id, backlog_dir }) => cmd::get::run(&backlog_dir, &id),
+        Some(Command::Task {
+            id,
+            context,
+            backlog_dir,
+            roadmap,
+        }) => cmd::task::run(&backlog_dir, &roadmap, &id, context),
         Some(Command::Search { query, backlog_dir }) => cmd::search::run(&backlog_dir, &query),
         Some(Command::Deps { id, backlog_dir }) => cmd::deps::run(&backlog_dir, &id),
         Some(Command::Status { backlog_dir }) => cmd::status::run(&backlog_dir),

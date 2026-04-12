@@ -115,6 +115,34 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Structural search via `ast-grep`.
+    Find {
+        /// ast-grep pattern (e.g. `$X.unwrap()`). Omit when using `--rule`.
+        pattern: Option<String>,
+        /// Language to parse (`ast-grep --lang`). Defaults to `rust`.
+        #[arg(long, default_value = "rust")]
+        lang: String,
+        /// Resolve a rule file from `.claude/rules/sg/<name>.yml`.
+        #[arg(long)]
+        rule: Option<String>,
+        /// Path to search (defaults to `ast-grep`'s default of CWD).
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
+    /// Structural rewrite via `ast-grep` (applies edits in place).
+    Rewrite {
+        /// ast-grep pattern to match.
+        pattern: String,
+        /// Replacement pattern.
+        #[arg(long = "to")]
+        to: String,
+        /// Language to parse (`ast-grep --lang`). Defaults to `rust`.
+        #[arg(long, default_value = "rust")]
+        lang: String,
+        /// Path to rewrite (defaults to `ast-grep`'s default of CWD).
+        #[arg(long)]
+        path: Option<PathBuf>,
+    },
     /// Install the pre-commit git hook that runs `ether-forge check`.
     InstallHooks {
         /// Repository root (defaults to the current directory).
@@ -158,6 +186,18 @@ fn main() -> anyhow::Result<()> {
             apply,
             json,
         }) => cmd::groom::run(&backlog_dir, &roadmap, apply, json),
+        Some(Command::Find {
+            pattern,
+            lang,
+            rule,
+            path,
+        }) => cmd::find::run(pattern.as_deref(), &lang, rule.as_deref(), path.as_deref()),
+        Some(Command::Rewrite {
+            pattern,
+            to,
+            lang,
+            path,
+        }) => cmd::rewrite::run(&pattern, &to, &lang, path.as_deref()),
         Some(Command::InstallHooks { repo_root }) => cmd::install_hooks::run(&repo_root),
     }
 }

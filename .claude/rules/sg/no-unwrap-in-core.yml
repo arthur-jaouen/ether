@@ -1,0 +1,8 @@
+id: no-unwrap-in-core
+message: Avoid `.unwrap()` in ether-core; prefer `?` or explicit `.expect("…")`.
+severity: warning
+language: rust
+rule:
+  pattern: $X.unwrap()
+files:
+  - crates/ether-core/**/*.rs

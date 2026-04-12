@@ -57,6 +57,22 @@ Configured in `.claude/settings.json`. The harness (not the model) runs these, s
 
 Rollout: hooks land alongside the matching ether-forge subcommands, but the bash fallbacks mean none of them are blocked on the Rust work.
 
+### Worktree-native skills
+
+Problem: `/groom`, `/dev`, and `/roadmap` currently create worktrees with `git worktree add … && cd …`. That only moves the Bash tool's cwd — Glob/Grep/Read/Edit keep resolving against the original session directory, so edits and lint re-runs silently drift back to `main`. Parallel runs of these skills step on each other for the same reason.
+
+Fix: use the harness primitive `EnterWorktree` / `ExitWorktree` instead. `EnterWorktree` switches the whole session's working directory, so every tool — Bash, Glob, Grep, Read, Edit, and `ether-forge` invocations — naturally targets the worktree with no per-call path discipline.
+
+Scope:
+
+- Migrate `/groom`, `/dev`, `/roadmap` skill files to call `EnterWorktree` (named `groom-YYYY-MM-DD`, `dev-T<n>`, `roadmap-<topic>`) in place of the manual `git worktree add` + `cd` dance. Commit inside, then `ExitWorktree` with `keep` (pre-merge) or `remove` (post-merge) based on user choice.
+- Document the nesting edge case: `EnterWorktree` refuses when already inside a worktree. Each skill notes "if already in a worktree, work in place" as a one-line fallback.
+- Follow-up (independent, smaller): teach `ether-forge` to resolve repo root via `git rev-parse --show-toplevel` so subcommands stay correct when invoked from a subdirectory. No longer load-bearing for the worktree bug, but keeps the CLI robust on its own.
+
+Non-goal: any change to `ether-forge`'s `--backlog` flag semantics. Inside an `EnterWorktree` session, cwd *is* the worktree and the existing relative default is already correct.
+
+Ordering: skill migrations land first (S each, independent). The forge `--show-toplevel` resolver is a separate S task with no dependency on the skill work.
+
 ## Phase 0.5 — Claude tooling
 
 Goal: make Claude's exploration, edit, and feedback loop cheaper and more semantically accurate. Where Phase 0 automates the *process*, this phase automates the *code work itself*. Shipped as `ether-forge` subcommands where it fits, standalone tools where it doesn't.

@@ -24,7 +24,7 @@ Commit outstanding changes and report final state.
       ```
       Co-Authored-By: Claude <noreply@anthropic.com>
       ```
-   d. If the worktree is a groom/roadmap branch, ask about merging
+   d. If the worktree is a groom/roadmap branch, use `AskUserQuestion` to ask about merging (options: "Merge and delete" / "Keep branch")
 
 4. **Report final state:**
    ```

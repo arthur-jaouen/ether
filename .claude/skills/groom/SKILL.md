@@ -52,7 +52,7 @@ All commands run from `/home/arthur/ether`.
    - **Auto-applied** (always safe): cascade satisfied deps — `ether-forge groom --apply` handles this.
    - **Proposed** (need "yes"): new tasks, size corrections, status fixes, ROADMAP.md updates.
    - **Flagged** (info only): circular deps, orphaned tasks.
-9. Present a concise report and wait for confirmation.
+9. Present a concise report, then use `AskUserQuestion` to confirm application (options like "Apply all" / "Apply subset" / "Cancel"). Never ask in plain text when the choices are discrete.
 
 ## Phase 5 — Apply
 
@@ -60,7 +60,7 @@ All commands run from `/home/arthur/ether`.
 11. Apply auto-fixes via `ether-forge groom --apply`. Apply proposed changes (new task files, edits, ROADMAP.md updates) directly in the worktree.
 12. `ether-forge validate` to confirm integrity before committing.
 13. Commit with a descriptive message.
-14. Ask whether to merge into `main`. On confirmation:
+14. Use `AskUserQuestion` to ask whether to merge into `main` (options: "Merge and delete" / "Keep branch"). On confirmation:
     - `ExitWorktree` with `action: "keep"` to return the session to the main checkout.
     - `git merge --ff-only groom-YYYY-MM-DD`. If ff fails because `main` advanced, re-enter the worktree, **rebase the groom branch onto main** (dropping hunks for files that no longer exist, e.g. tasks shipped in the meantime), exit again, then ff-merge. Never replay edits directly on main — that orphans the branch commit.
     - After a successful merge, `git worktree remove .claude/worktrees/groom-YYYY-MM-DD` and `git branch -d groom-YYYY-MM-DD`. If the user declines the merge, leave the worktree intact (the earlier `ExitWorktree` used `keep`).

@@ -47,6 +47,17 @@ With the above in place, `/dev`, `/groom`, and `/backlog` skills become ~20-line
 4. `validate` (catches drift early)
 5. `groom` migration + CI workflow (last, once the primitives are stable)
 
+### Claude Code hooks
+
+Configured in `.claude/settings.json`. The harness (not the model) runs these, so they're enforced guardrails and can't be talked out of. Hooks are independent of ether-forge — they shell out to whatever command is configured, so bash scripts can stand in until the CLI lands.
+
+- **PostToolUse** (`Edit`, `Write` on `*.rs`) — run `cargo fmt` on the touched file. Sub-100ms, deterministic, keeps the tree formatted without waiting for commit. Clippy stays at commit time via `ether-forge check` — too slow for per-edit.
+- **PreToolUse** (`Bash`) — block destructive patterns: `git push --force*`, `git reset --hard*`, `git branch -D *`, `rm -rf *`. User retains override by running the command themselves in a `!` prompt.
+- **SessionStart** — inject backlog status into first context (next ready task, counts of ready/blocked/draft). Ship `.claude/hooks/backlog-status.sh` (pure bash over `backlog/*.md` frontmatter) now; swap the command to `ether-forge status` later with no hook-config change.
+- **SessionEnd** — run `ether-forge validate` (or a bash equivalent in the interim). Fires once at session close, not per turn — silent during work, noisy only when drift is detected.
+
+Rollout: hooks land alongside the matching ether-forge subcommands, but the bash fallbacks mean none of them are blocked on the Rust work.
+
 ## Phase 1 — Core ECS
 
 Goal: a minimal but functional ECS with World, Entity, Component storage, and basic queries.

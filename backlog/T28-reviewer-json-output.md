@@ -10,7 +10,7 @@ Make the reviewer agent emit a machine-readable artifact alongside its prose sum
 
 ## Sub-steps
 
-- [ ] Update `.claude/agents/reviewer.md` system prompt: after the existing terse summary, write `target/.ether-forge/review-T<id>.json` with shape `{"blockers": [...], "nits": [...]}` where each entry has `{file, line, message}`.
-- [ ] Ensure the reviewer's tool allowlist includes `Write` (or `Bash` mkdir + redirect) for the artifact path.
-- [ ] Document the artifact path and schema in a short note at the bottom of `.claude/agents/reviewer.md` so the contract is discoverable.
-- [ ] Manual verification: run `/dev` against a trivial task and confirm the JSON file is produced with the expected shape.
+- [x] Update `.claude/agents/reviewer.md` system prompt: after the existing terse summary, write `target/.ether-forge/review-T<id>.json` with shape `{"blockers": [...], "nits": [...]}` where each entry has `{file, line, message}`.
+- [x] Ensure the reviewer's tool allowlist includes `Write` (or `Bash` mkdir + redirect) for the artifact path.
+- [x] Document the artifact path and schema in a short note at the bottom of `.claude/agents/reviewer.md` so the contract is discoverable.
+- [x] Manual verification: run `/dev` against a trivial task and confirm the JSON file is produced with the expected shape.

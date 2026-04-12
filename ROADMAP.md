@@ -107,11 +107,36 @@ Architecture:
 
 **Gate:** don't start this until 0.5.1 and 0.5.2 are in use and their limits are felt. At 3 crates, grep + ast-grep may already cover 90% of navigation needs. Revisit when the codebase grows or when a concrete refactor is blocked by "find all callers."
 
+### 0.5.4 — Review agent efficiency
+
+Goal: shrink the self-review step in `/dev` (currently `.claude/skills/dev/SKILL.md:50-75`). Today it spawns a `general-purpose` haiku subagent with the entire diff pasted inline — the diff lives in both parent and child context, the agent's toolset is wider than needed, and it always fires regardless of diff size.
+
+**Pass A — quick wins (no new tooling):**
+
+- **Don't paste the diff.** The subagent `cd`s into the worktree and runs `git diff main` itself. Parent context stays clean; the review payload never enters the main conversation.
+- **Switch `subagent_type` to `Explore`.** Read-only toolset (Grep, Read, Glob), purpose-built for investigation, lighter than `general-purpose`.
+- **Skip on trivial diffs.** If `git diff main --stat` shows <30 changed lines and no `unsafe` / `HashMap` / new test files, self-review inline in the main loop instead of spawning at all.
+
+**Pass B — forge-backed review toolkit:**
+
+The review agent stops driving raw Grep/Read and instead composes `ether-forge` primitives. Forge exposes building blocks; the agent still reasons and decides what to flag.
+
+- `ether-forge diff` — scoped worktree diff, lockfiles stripped, size-capped, ready to feed a reviewer
+- `ether-forge task <T<n>> --context` — frontmatter + body + linked ROADMAP section as one blob, so the agent learns the goal without reading three files
+- `ether-forge grep <recipe>` — shared recipes (`unsafe-without-safety`, `hashmap-iter`, `todo`, `dead-code`) so every agent uses the same patterns
+- `ether-forge helpers` — registry of known shared test helpers, for duplication checks by name
+
+Other skills (`/groom`, future review-only slash commands) reuse the same primitives, so the investment compounds.
+
+**Ordering:** Pass A first — it's a skill-file edit, no Rust work, and it removes the biggest cost (inline diff) immediately. Pass B lands as small forge subcommands one at a time, each independently useful, and the skill migrates to them incrementally.
+
 ### Ordering
 
 1. 0.5.1 feedback loop (S, `ether-forge check` rewrite + nextest install docs)
 2. 0.5.2 ast-grep wrapper (S or M, depending on whether it's a thin pass-through or adds a rule-file convention)
-3. 0.5.3 rust-analyzer daemon (L, gated — revisit decision before starting)
+3. 0.5.4 Pass A — review agent quick wins (S, skill-file edit only)
+4. 0.5.4 Pass B — forge review primitives (M, one subcommand at a time)
+5. 0.5.3 rust-analyzer daemon (L, gated — revisit decision before starting)
 
 ## Phase 1 — Core ECS
 

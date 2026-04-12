@@ -3,6 +3,7 @@ id: T24
 title: "/groom skill: migrate to EnterWorktree"
 size: S
 status: ready
+priority: 1
 ---
 
 # /groom skill: migrate to EnterWorktree

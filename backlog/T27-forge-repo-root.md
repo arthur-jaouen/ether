@@ -3,6 +3,7 @@ id: T27
 title: "ether-forge: resolve repo root via git rev-parse --show-toplevel"
 size: S
 status: ready
+priority: 2
 ---
 
 # ether-forge: resolve repo root via git rev-parse --show-toplevel

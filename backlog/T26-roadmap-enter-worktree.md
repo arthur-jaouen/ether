@@ -3,6 +3,7 @@ id: T26
 title: "/roadmap skill: migrate to EnterWorktree"
 size: S
 status: ready
+priority: 1
 ---
 
 # /roadmap skill: migrate to EnterWorktree

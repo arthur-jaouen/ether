@@ -3,6 +3,7 @@ id: T25
 title: "/dev skill: migrate to EnterWorktree"
 size: S
 status: ready
+priority: 1
 ---
 
 # /dev skill: migrate to EnterWorktree

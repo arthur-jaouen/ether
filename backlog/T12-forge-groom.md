@@ -2,9 +2,7 @@
 id: T12
 title: ether-forge groom subcommand (migrate lint and coverage logic)
 size: L
-status: blocked
-depends_on:
-  - T10
+status: ready
 priority: 11
 ---
 

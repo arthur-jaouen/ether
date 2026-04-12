@@ -3,6 +3,7 @@ id: T5
 title: Scaffold ether-forge crate and frontmatter parser
 size: M
 status: ready
+priority: 1
 ---
 
 ## Sub-steps

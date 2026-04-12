@@ -3,6 +3,7 @@ id: T15
 title: Claude hooks — PostToolUse fmt and PreToolUse destructive guard
 size: S
 status: ready
+priority: 2
 ---
 
 ## Sub-steps

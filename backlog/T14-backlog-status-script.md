@@ -3,6 +3,7 @@ id: T14
 title: backlog-status.sh bash fallback script
 size: S
 status: ready
+priority: 2
 ---
 
 ## Sub-steps

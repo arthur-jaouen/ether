@@ -6,6 +6,7 @@ status: blocked
 depends_on:
   - T5
   - T7
+priority: 7
 ---
 
 ## Sub-steps

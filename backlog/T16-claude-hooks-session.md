@@ -5,6 +5,7 @@ size: S
 status: blocked
 depends_on:
   - T14
+priority: 9
 ---
 
 ## Sub-steps

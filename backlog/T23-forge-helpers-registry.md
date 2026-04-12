@@ -1,7 +1,7 @@
 ---
 id: T23
 title: ether-forge helpers subcommand (shared test helper registry)
-size: S
+size: M
 status: ready
 priority: 17
 ---

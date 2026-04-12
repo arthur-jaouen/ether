@@ -1,7 +1,7 @@
 ---
 id: T3
 title: Derive Component macro
-size: S
+size: M
 status: blocked
 depends_on:
   - T2

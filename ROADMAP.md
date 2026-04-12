@@ -114,7 +114,7 @@ Goal: shrink the self-review step in `/dev` (currently `.claude/skills/dev/SKILL
 **Pass A — quick wins (no new tooling):**
 
 - **Don't paste the diff.** The subagent `cd`s into the worktree and runs `git diff main` itself. Parent context stays clean; the review payload never enters the main conversation.
-- **Switch `subagent_type` to `Explore`.** Read-only toolset (Grep, Read, Glob), purpose-built for investigation, lighter than `general-purpose`.
+- **Add a custom `reviewer` agent** at `.claude/agents/reviewer.md`. Pinned `model: haiku`, minimal tool allowlist (`Read`, `Grep`, `Glob`, `Bash(git diff:*)`), terse system prompt that instructs it to read `CLAUDE.md` + `.claude/rules/*.md` at invocation so rules stay single-sourced. `/dev` just spawns `subagent_type: reviewer` with the task ID — no inline checklist. Reusable by `/groom` and future `/review` commands.
 - **Skip on trivial diffs.** If `git diff main --stat` shows <30 changed lines and no `unsafe` / `HashMap` / new test files, self-review inline in the main loop instead of spawning at all.
 
 **Pass B — forge-backed review toolkit:**

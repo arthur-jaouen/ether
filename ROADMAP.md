@@ -33,7 +33,6 @@ These eliminate the most error-prone manual steps in the dev loop:
 ### Git & CI automation
 
 - `ether-forge install-hooks` — writes `.git/hooks/pre-commit` that runs `ether-forge check`. Opt-in, idempotent.
-- `.github/workflows/ci.yml` — runs `ether-forge check` on PR. Blocks merge on failure.
 
 ### Skill thinning
 
@@ -45,7 +44,7 @@ With the above in place, `/dev`, `/groom`, and `/backlog` skills become ~20-line
 2. `check` + `install-hooks` (unblocks safer autonomous commits)
 3. `worktree` + `commit` (smooths the `/dev` loop)
 4. `validate` (catches drift early)
-5. `groom` migration + CI workflow (last, once the primitives are stable)
+5. `groom` migration (last, once the primitives are stable)
 
 ### Claude Code hooks
 

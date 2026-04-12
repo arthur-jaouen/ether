@@ -10,6 +10,6 @@ priority: 4
 
 ## Sub-steps
 
-- [ ] Edit `.claude/skills/backlog/SKILL.md`: add `get`, `search`, `deps`, `next` sections mirroring the existing verb style.
-- [ ] For each verb, document arg shape and one example invocation.
-- [ ] Remove any inline prose that duplicated what the verbs now cover.
+- [x] Edit `.claude/skills/backlog/SKILL.md`: add `get`, `search`, `deps`, `next` sections mirroring the existing verb style.
+- [x] For each verb, document arg shape and one example invocation.
+- [x] Remove any inline prose that duplicated what the verbs now cover.

@@ -1,7 +1,7 @@
 ---
 name: backlog
 description: Day-to-day backlog management for Ether ECS. List, add, reorder, and complete tasks in backlog/ directory.
-argument-hint: [action: list | add "task name" | done T<n> | reorder | status]
+argument-hint: [action: list | next | get T<n> | search <query> | deps T<n> | add "task name" | done T<n> | reorder | status]
 ---
 
 # Backlog
@@ -29,6 +29,38 @@ ether-forge status
 ```
 
 Returns counts by status and the next ready task. Done.
+
+### `next`
+
+```bash
+ether-forge next
+```
+
+Prints the top ready task (priority ascending, then numeric id). Use when the user asks "what's next?" without specifying an id.
+
+### `get T<n>`
+
+```bash
+ether-forge get T33
+```
+
+Prints the full task body (frontmatter + markdown) for one id. Searches active and `done/` — use when the user references a task by id and you need its sub-steps or body.
+
+### `search <query>`
+
+```bash
+ether-forge search worktree
+```
+
+Case-insensitive substring match across id, title, and body. Use when the user describes a topic without an id ("is there already a task about X?") to avoid duplicate adds.
+
+### `deps T<n>`
+
+```bash
+ether-forge deps T33
+```
+
+Shows upward (what T33 blocks on) and downward (what depends on T33) edges. Use before marking `done` or reprioritizing to see the cascade impact.
 
 ### `add "task name"`
 

@@ -4,6 +4,7 @@ title: Claude hooks — SessionStart status and SessionEnd validate
 size: S
 status: done
 priority: 9
+commit: 8a3cd79
 ---
 
 Wired `SessionStart` to `.claude/hooks/backlog-status.sh` and `SessionEnd`

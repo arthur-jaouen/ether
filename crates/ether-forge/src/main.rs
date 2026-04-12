@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+// FIXME(T6): drop `allow(dead_code)` once a subcommand wires Task::load_all in.
 #[allow(dead_code)]
 mod task;
 

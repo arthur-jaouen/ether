@@ -100,6 +100,21 @@ enum Command {
         #[arg(long, default_value = "backlog")]
         backlog_dir: PathBuf,
     },
+    /// Audit coverage vs ROADMAP, lint backlog, flag drift. Dry-run by default.
+    Groom {
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+        /// Path to ROADMAP.md (defaults to `./ROADMAP.md`).
+        #[arg(long, default_value = "ROADMAP.md")]
+        roadmap: PathBuf,
+        /// Apply cascade fix-ups to the backlog (default is dry-run reporting).
+        #[arg(long)]
+        apply: bool,
+        /// Emit a JSON report instead of human-readable output.
+        #[arg(long)]
+        json: bool,
+    },
     /// Install the pre-commit git hook that runs `ether-forge check`.
     InstallHooks {
         /// Repository root (defaults to the current directory).
@@ -137,6 +152,12 @@ fn main() -> anyhow::Result<()> {
             commit,
             backlog_dir,
         }) => cmd::done::run(&backlog_dir, &id, commit.as_deref()),
+        Some(Command::Groom {
+            backlog_dir,
+            roadmap,
+            apply,
+            json,
+        }) => cmd::groom::run(&backlog_dir, &roadmap, apply, json),
         Some(Command::InstallHooks { repo_root }) => cmd::install_hooks::run(&repo_root),
     }
 }

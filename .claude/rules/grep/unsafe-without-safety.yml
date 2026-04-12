@@ -1,0 +1,4 @@
+name: unsafe-without-safety
+description: Flag `unsafe` blocks and fns to audit for SAFETY comments
+pattern: "\\bunsafe\\s*(fn|impl|\\{)"
+path: crates

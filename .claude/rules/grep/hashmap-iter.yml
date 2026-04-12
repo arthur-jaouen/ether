@@ -1,0 +1,4 @@
+name: hashmap-iter
+description: Flag HashMap/HashSet use — iteration order is non-deterministic
+pattern: "\\b(HashMap|HashSet)\\b"
+path: crates

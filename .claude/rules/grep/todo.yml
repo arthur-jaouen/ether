@@ -1,0 +1,4 @@
+name: todo
+description: Work markers left in the source (TODO/FIXME/XXX/HACK)
+pattern: "\\b(TODO|FIXME|XXX|HACK)\\b"
+path: crates

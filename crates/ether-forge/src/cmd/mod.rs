@@ -7,6 +7,7 @@ pub mod diff;
 pub mod done;
 pub mod find;
 pub mod get;
+pub mod grep;
 pub mod groom;
 pub mod install_hooks;
 pub mod list;

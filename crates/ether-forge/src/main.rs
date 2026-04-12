@@ -138,6 +138,14 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Run a named ripgrep recipe from `.claude/rules/grep/`.
+    Grep {
+        /// Recipe name (file stem under `.claude/rules/grep/`).
+        recipe: Option<String>,
+        /// List available recipes instead of running one.
+        #[arg(long)]
+        list: bool,
+    },
     /// Structural search via `ast-grep`.
     Find {
         /// ast-grep pattern (e.g. `$X.unwrap()`). Omit when using `--rule`.
@@ -216,6 +224,7 @@ fn main() -> anyhow::Result<()> {
             apply,
             json,
         }) => cmd::groom::run(&backlog_dir, &roadmap, apply, json),
+        Some(Command::Grep { recipe, list }) => cmd::grep::run(recipe.as_deref(), list),
         Some(Command::Find {
             pattern,
             lang,

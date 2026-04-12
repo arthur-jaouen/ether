@@ -1,0 +1,4 @@
+name: dead-code
+description: "`#[allow(dead_code)]` escape hatches — every one should have a FIXME"
+pattern: "#\\[allow\\(dead_code\\)\\]"
+path: crates

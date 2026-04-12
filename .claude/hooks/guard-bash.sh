@@ -15,7 +15,6 @@ patterns=(
     'git push --force'
     'git push -f'
     'git reset --hard'
-    'git branch -D'
     'rm -rf'
 )
 

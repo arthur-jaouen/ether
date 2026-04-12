@@ -6,72 +6,56 @@ argument-hint: [action: list | add "task name" | done T<n> | reorder | status]
 
 # Backlog
 
-Manage the Ether task queue. Tasks live as individual files in `backlog/` with YAML frontmatter. Read the argument to determine the action — if none given, default to `status`.
+Manage the Ether task queue via the `ether-forge` CLI. Tasks live as individual files in `backlog/` with YAML frontmatter. Parse the argument to pick an action — if none given, default to `status`.
 
-## Setup
-
-1. `cd /home/arthur/ether`
-2. Scan `backlog/*.md` — each file has YAML frontmatter (`id`, `title`, `size`, `status`, `depends_on`, `priority`)
+All commands run from `/home/arthur/ether`.
 
 ## Actions
 
 ### `list`
 
-3. For each file in `backlog/*.md`, parse YAML frontmatter.
-4. Check `git branch --list 'T*'` to detect in-progress tasks.
-5. Render a table sorted by: priority (lowest first, no-priority last), then ID:
+Shell out — `ether-forge` already sorts by priority then ID and renders a table:
 
-```
-| ID   | Title                     | Size | Status  | Deps | Pri | Branch |
-|------|---------------------------|------|---------|------|-----|--------|
-| T1   | World and Entity types    | M    | ready   |      |     |        |
-| T2   | Component storage         | M    | ready   |      |     |        |
+```bash
+ether-forge list
 ```
 
-6. Show counts: N ready, N draft, N blocked.
-
-### `add "task name"`
-
-3. Ask for sub-steps, or generate from context.
-4. Auto-assign next ID: scan `backlog/` and `backlog/done/` for highest `T<n>`, increment.
-5. Generate short slug (lowercase, hyphens, 2-4 words).
-6. Create `backlog/T<next>-<slug>.md`:
-
-```yaml
----
-id: T<next>
-title: <task name>
-size: M
-status: draft
----
-
-## Sub-steps
-
-- [ ] Sub-step 1
-- [ ] Sub-step 2
-```
-
-7. Commit the new file.
-
-### `done T<n>`
-
-3. Find `backlog/T<n>-*.md`. If in `backlog/done/`, report already done.
-4. Get implementation commit hash from git log or ask the user.
-5. Create `backlog/done/T<n>-<slug>.md` (frontmatter only, status=done, commit field added, sub-steps stripped).
-6. Delete original.
-7. **Cascade:** scan remaining `backlog/*.md`. Remove `T<n>` from `depends_on` lists. Promote `blocked` → `ready` when list empty.
-8. Report cascades. Commit all changes.
-
-### `reorder`
-
-3. Show current list sorted by priority then ID.
-4. To bump: add/update `priority` field (lower = first).
-5. To deprioritize: remove `priority` field.
-6. Commit changes.
+Optionally filter: `ether-forge list --status ready`.
 
 ### `status`
 
-3. Summary: count by status, next up (top ready), in progress (T* branches), blocked tasks, draft tasks.
+```bash
+ether-forge status
+```
+
+Returns counts by status and the next ready task. Done.
+
+### `add "task name"`
+
+`ether-forge` does not generate task bodies — this action stays conversational:
+
+1. Ask the user (or infer from context) for sub-steps.
+2. Pick the next ID: `ether-forge list` shows the highest active ID; also scan `backlog/done/` for higher.
+3. Generate a short slug (lowercase, hyphens, 2-4 words).
+4. Write `backlog/T<next>-<slug>.md` with frontmatter (`id`, `title`, `size: M`, `status: draft`) and a `## Sub-steps` section.
+5. `ether-forge validate` to confirm integrity.
+6. Commit the new file.
+
+### `done T<n>`
+
+```bash
+ether-forge done T<n> --commit <sha>
+```
+
+Moves the file to `backlog/done/`, strips sub-steps, records the commit, and cascades `depends_on` updates across the backlog. Commit the resulting changes. If the user does not supply a sha, read it from `git log` for the implementing commit.
+
+### `reorder`
+
+Priority lives in the `priority` frontmatter field (lower = first). `ether-forge` has no reorder subcommand yet, so:
+
+1. `ether-forge list` to show the current order.
+2. Edit the `priority` field on the tasks the user wants to bump (or remove it to deprioritize).
+3. `ether-forge validate` and commit.
 
 ## Rules
 
@@ -79,6 +63,7 @@ status: draft
 - Don't rewrite sub-step content — only manage lifecycle.
 - Commit after every modification.
 - File names: `T<n>-short-slug.md`.
+- Prefer shelling out to `ether-forge` over parsing frontmatter by hand. Fall back to direct file edits only when no subcommand covers the action.
 
 ## Paths
 

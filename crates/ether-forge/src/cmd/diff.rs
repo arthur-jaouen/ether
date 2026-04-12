@@ -12,24 +12,24 @@ use std::process::{Command, Stdio};
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::cmd::worktree::{find_task, slugify};
+use crate::repo;
 
 /// Hard cap on bytes of diff output printed to stdout.
 const MAX_DIFF_BYTES: usize = 200_000;
 
 /// Run the diff subcommand against the real `git` binary.
 pub fn run(backlog_dir: &Path, id: Option<&str>) -> Result<()> {
-    let cwd = std::env::current_dir().context("reading current directory")?;
     let work_dir = match id {
         Some(id) => {
             let task = find_task(backlog_dir, id)?;
             let rel = PathBuf::from("worktrees").join(format!("{}-{}", id, slugify(&task.title)));
-            let abs = cwd.join(&rel);
+            let abs = repo::repo_root()?.join(&rel);
             if !abs.exists() {
                 bail!("worktree path does not exist: {}", abs.display());
             }
             abs
         }
-        None => cwd,
+        None => repo::repo_root()?,
     };
 
     let raw = git_diff_main(&work_dir)?;

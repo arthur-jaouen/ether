@@ -6,7 +6,24 @@ mod task;
 
 mod cmd;
 mod frontmatter;
+mod repo;
 mod roadmap;
+
+/// Default `--backlog` path: `<repo_root>/backlog`, falling back to the
+/// literal `backlog` relative to cwd if `git rev-parse` fails.
+fn default_backlog_dir() -> PathBuf {
+    repo::repo_root()
+        .map(|r| r.join("backlog"))
+        .unwrap_or_else(|_| PathBuf::from("backlog"))
+}
+
+/// Default `--roadmap` path: `<repo_root>/ROADMAP.md`, falling back to the
+/// literal `ROADMAP.md` relative to cwd if `git rev-parse` fails.
+fn default_roadmap() -> PathBuf {
+    repo::repo_root()
+        .map(|r| r.join("ROADMAP.md"))
+        .unwrap_or_else(|_| PathBuf::from("ROADMAP.md"))
+}
 
 /// Ether development process CLI — backlog management and workflow automation.
 #[derive(Parser, Debug)]
@@ -23,7 +40,7 @@ enum Command {
     /// Validate backlog integrity (ids, depends_on, cycles, filenames).
     Validate {
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// List backlog tasks sorted by priority then id.
@@ -32,13 +49,13 @@ enum Command {
         #[arg(long)]
         status: Option<String>,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Print the next ready task (priority then id).
     Next {
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Print a task's full contents (active or done).
@@ -46,7 +63,7 @@ enum Command {
         /// Task id (e.g. `T8`).
         id: String,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Print a task file, optionally appending its linked ROADMAP section.
@@ -57,10 +74,10 @@ enum Command {
         #[arg(long)]
         context: bool,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
         /// Path to ROADMAP.md (defaults to `./ROADMAP.md`).
-        #[arg(long, default_value = "ROADMAP.md")]
+        #[arg(long, default_value_os_t = default_roadmap())]
         roadmap: PathBuf,
     },
     /// Case-insensitive substring match on id, title, and body.
@@ -68,7 +85,7 @@ enum Command {
         /// Search query.
         query: String,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Show upward and downward dependencies for a task.
@@ -76,13 +93,13 @@ enum Command {
         /// Task id (e.g. `T8`).
         id: String,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Compact backlog summary — counts by status and next ready task.
     Status {
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Print a review-scoped `git diff main` (strips lockfiles, caps size).
@@ -90,7 +107,7 @@ enum Command {
         /// Task id (optional). If given, runs inside that task's worktree.
         id: Option<String>,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Create a worktree and branch for a task.
@@ -98,7 +115,7 @@ enum Command {
         /// Task id (e.g. `T9`).
         id: String,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Run `check`, then `git commit` with the task's title as the message.
@@ -106,7 +123,7 @@ enum Command {
         /// Task id (e.g. `T9`).
         id: String,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
         /// Extra args forwarded to `git commit` (e.g. `-a`, additional `-m`).
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
@@ -120,16 +137,16 @@ enum Command {
         #[arg(long)]
         commit: Option<String>,
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
     /// Audit coverage vs ROADMAP, lint backlog, flag drift. Dry-run by default.
     Groom {
         /// Backlog directory (defaults to `./backlog`).
-        #[arg(long, default_value = "backlog")]
+        #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
         /// Path to ROADMAP.md (defaults to `./ROADMAP.md`).
-        #[arg(long, default_value = "ROADMAP.md")]
+        #[arg(long, default_value_os_t = default_roadmap())]
         roadmap: PathBuf,
         /// Apply cascade fix-ups to the backlog (default is dry-run reporting).
         #[arg(long)]

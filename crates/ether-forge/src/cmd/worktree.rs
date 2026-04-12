@@ -10,6 +10,7 @@ use std::process::{Command, ExitStatus, Stdio};
 
 use anyhow::{anyhow, bail, Context, Result};
 
+use crate::repo;
 use crate::task::Task;
 
 /// Spawn the real `git` binary and return the resulting exit status.
@@ -29,7 +30,7 @@ pub(crate) fn spawn_real(argv: &[&str]) -> Result<ExitStatus> {
 pub fn run(backlog_dir: &Path, id: &str) -> Result<()> {
     let task = find_task(backlog_dir, id)?;
     let slug = slugify(&task.title);
-    let repo_root = std::env::current_dir().context("reading current directory")?;
+    let repo_root = repo::repo_root()?;
     let worktree_rel = PathBuf::from("worktrees").join(format!("{id}-{slug}"));
     let worktree_abs = repo_root.join(&worktree_rel);
     let branch = format!("task/{id}");

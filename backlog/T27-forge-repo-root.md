@@ -14,8 +14,8 @@ Independent of T24/T25/T26 — those fix the worktree drift at the skill layer; 
 
 ## Sub-steps
 
-- [ ] Add a `repo_root()` helper in `crates/ether-forge/src/main.rs` (or a new `repo.rs`) that runs `git rev-parse --show-toplevel` from `std::env::current_dir()` and returns the resolved `PathBuf`; error cleanly if not in a git repo.
-- [ ] Change the `--backlog` default in `crates/ether-forge/src/main.rs` from the literal `"backlog"` to `<repo_root>/backlog`, computed at runtime before clap parsing or via a `default_value_t` closure.
-- [ ] Update `crates/ether-forge/src/cmd/worktree.rs:32` and `crates/ether-forge/src/cmd/diff.rs:21` to use `repo_root()` instead of `current_dir()`.
-- [ ] Add an integration test in `crates/ether-forge/tests/` that runs a forge subcommand from a subdirectory of a temp git repo and asserts it still finds `backlog/`.
-- [ ] Run `cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo fmt --all -- --check`.
+- [x] Add a `repo_root()` helper in `crates/ether-forge/src/main.rs` (or a new `repo.rs`) that runs `git rev-parse --show-toplevel` from `std::env::current_dir()` and returns the resolved `PathBuf`; error cleanly if not in a git repo.
+- [x] Change the `--backlog` default in `crates/ether-forge/src/main.rs` from the literal `"backlog"` to `<repo_root>/backlog`, computed at runtime before clap parsing or via a `default_value_t` closure.
+- [x] Update `crates/ether-forge/src/cmd/worktree.rs:32` and `crates/ether-forge/src/cmd/diff.rs:21` to use `repo_root()` instead of `current_dir()`.
+- [x] Add an integration test in `crates/ether-forge/tests/` that runs a forge subcommand from a subdirectory of a temp git repo and asserts it still finds `backlog/`.
+- [x] Run `cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo fmt --all -- --check`.

@@ -2,7 +2,8 @@
 id: T45
 title: ether-forge rules cat — concatenate CLAUDE.md and rule files
 size: S
-status: draft
+status: ready
+priority: 1
 ---
 
 Add `ether-forge rules cat` (and a sibling `ether-forge rules list`) subcommand. `cat` prints `CLAUDE.md` followed by every `.claude/rules/**/*.md` file on stdout, each with a short `# --- <path> ---` separator. `list` just prints the paths.

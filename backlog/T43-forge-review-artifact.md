@@ -2,7 +2,8 @@
 id: T43
 title: ether-forge review-artifact — write reviewer JSON artifact
 size: S
-status: draft
+status: ready
+priority: 2
 ---
 
 Add `ether-forge review-artifact --task T<n> [--blocker file:line:msg]... [--nit file:line:msg]...` subcommand. Writes `target/.ether-forge/review-T<n>.json` with the canonical `{blockers: [...], nits: [...]}` schema, creating parent directories as needed and validating every entry has `file`/`line`/`message`.

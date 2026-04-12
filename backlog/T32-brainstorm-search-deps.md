@@ -3,7 +3,7 @@ id: T32
 title: /brainstorm wires search and deps for idea validation
 size: S
 status: ready
-priority: 7
+priority: 6
 ---
 
 `/brainstorm` never checks whether a proposed idea is already captured or blocked by existing work. Wire `ether-forge search` and `ether-forge deps` as first-class validation primitives so brainstorming surfaces adjacency instead of producing duplicates.

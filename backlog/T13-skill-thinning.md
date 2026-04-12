@@ -5,7 +5,6 @@ size: M
 status: blocked
 depends_on:
   - T6
-  - T8
   - T9
 priority: 10
 ---

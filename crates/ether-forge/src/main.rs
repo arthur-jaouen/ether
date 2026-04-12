@@ -70,6 +70,14 @@ enum Command {
         #[arg(long, default_value = "backlog")]
         backlog_dir: PathBuf,
     },
+    /// Print a review-scoped `git diff main` (strips lockfiles, caps size).
+    Diff {
+        /// Task id (optional). If given, runs inside that task's worktree.
+        id: Option<String>,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+    },
     /// Create a worktree and branch for a task.
     Worktree {
         /// Task id (e.g. `T9`).
@@ -169,6 +177,7 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Search { query, backlog_dir }) => cmd::search::run(&backlog_dir, &query),
         Some(Command::Deps { id, backlog_dir }) => cmd::deps::run(&backlog_dir, &id),
         Some(Command::Status { backlog_dir }) => cmd::status::run(&backlog_dir),
+        Some(Command::Diff { id, backlog_dir }) => cmd::diff::run(&backlog_dir, id.as_deref()),
         Some(Command::Worktree { id, backlog_dir }) => cmd::worktree::run(&backlog_dir, &id),
         Some(Command::Commit {
             id,

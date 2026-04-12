@@ -3,6 +3,7 @@
 pub mod check;
 pub mod commit;
 pub mod deps;
+pub mod diff;
 pub mod done;
 pub mod find;
 pub mod get;

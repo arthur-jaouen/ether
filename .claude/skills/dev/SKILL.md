@@ -94,7 +94,7 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`.
     ```
 23. Report: branch name, what changed, test results
 24. **Pre-merge hygiene:** Run `git status` on main working tree. If dirty, warn instead of merging.
-25. Ask if the user wants to merge and delete the branch:
+25. Use the `AskUserQuestion` tool to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation:
     ```bash
     git merge T<n>-short-description
     git branch -d T<n>-short-description

@@ -70,9 +70,9 @@ Unified backlog health check: audit coverage, lint integrity, generate missing t
 
 **Auto-applied** (always safe): cascade satisfied deps.
 
-**Proposed changes** (need "yes"): new tasks, size corrections, status fixes.
+**Proposed changes** (need "yes"): new tasks, size corrections, status fixes, ROADMAP.md updates (stale sections, completed phases, new context).
 
-**Flagged** (info only): stale refs, circular deps, orphaned tasks.
+**Flagged** (info only): circular deps, orphaned tasks.
 
 18. Present report. Wait for confirmation.
 
@@ -88,7 +88,7 @@ Unified backlog health check: audit coverage, lint integrity, generate missing t
 
 ## Rules
 
-- Do NOT modify ROADMAP.md — flag stale text, recommend `/roadmap`.
+- ROADMAP.md changes (stale sections, completed phases, new context) are proposed like any other change — include them in the report and apply on confirmation.
 - Auto-fix only safe operations. Everything else needs confirmation.
 - New tasks go to `ready` or `blocked` — never `draft`.
 - Collect all findings before reporting — don't ask after each.

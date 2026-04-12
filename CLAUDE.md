@@ -17,6 +17,11 @@ Always run `cargo test --workspace` after changes.
 
 All crates live under `crates/`.
 
+**ether-forge** — development process CLI (binary):
+- Backlog management: list, next, get, search, deps, status
+- Parses `backlog/*.md` YAML frontmatter
+- Standalone — no dependency on ether-core or ether-macros
+
 **ether-core** — core ECS primitives (library):
 - World, Entity (generational index), ComponentId
 - Component storage (sparse sets, dense arrays)
@@ -35,14 +40,14 @@ All crates live under `crates/`.
 ## Dependency graph
 
 ```
-ether-core
-  (standalone)
-    ^
-ether-macros       
-  (syn, quote)
-    ^
-ether
-  (ether-core, ether-macros)
+ether-forge             ether-core
+  (clap, serde,           (standalone)
+   serde_yaml)               ^
+                         ether-macros       
+                           (syn, quote)
+                               ^
+                         ether
+                           (ether-core, ether-macros)
 ```
 
 ## Key patterns

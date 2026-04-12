@@ -34,6 +34,12 @@ Thinking partner for exploring ideas. This is a **conversation**, not a report.
 
 5. **Capture, don't build**: Offer to write into ROADMAP.md or create backlog tasks. **Never start implementing during a brainstorm.**
 
+## Asking questions
+
+- **Default to `AskUserQuestion`** whenever there are identifiable options (2-3 options, never 4 — that feels like a quiz). The user can always pick "Other" for freeform input.
+- **Use `preview`** on options when comparing approaches — show a code snippet or ASCII diagram so the user can visually compare before picking.
+- **Plain text only** for truly open-ended prompts where options would box the user in ("what's the use case?" / "tell me more about...").
+
 ## What NOT to do
 
 - Don't produce structured "Options / Pros / Cons" in your first response

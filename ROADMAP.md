@@ -2,7 +2,31 @@
 
 High-level priorities and context. Items here are ideas and goals — they move to `backlog/` when broken down into concrete tasks.
 
-## Phase 1 — Core ECS (active focus)
+## Phase 0 — ether-forge (active focus)
+
+Goal: a standalone CLI crate (`crates/ether-forge`) for managing the development process. Every skill (`/dev`, `/groom`, `/backlog`) shells out to it instead of parsing task files with ad-hoc bash loops.
+
+### Backlog CLI
+
+Binary: `cargo run -p ether-forge -- <subcommand>`. Subcommands:
+
+- `list [--status ready|blocked|draft|done|all]` — tabular task list sorted by priority then ID
+- `next` — print the top ready task (priority-first, lowest ID tiebreaker)
+- `get T<n>` — show full task detail (frontmatter + sub-steps)
+- `search <query>` — keyword search across task title, ID, and sub-step text
+- `deps T<n>` — dependency tree (what it depends on + what depends on it)
+- `status` — summary counts, next up, blocked list
+
+Parses `backlog/*.md` and `backlog/done/*.md` YAML frontmatter. Standalone crate — no dependency on ether-core or ether-macros.
+
+### Future subcommands
+
+As the project grows, ether-forge can absorb more process tooling:
+- `check` — pre-commit verification (test + clippy + fmt in one command)
+- `groom` — lint/audit logic currently in the `/groom` skill
+- `init-worktree T<n>` — create worktree + branch atomically
+
+## Phase 1 — Core ECS
 
 Goal: a minimal but functional ECS with World, Entity, Component storage, and basic queries.
 

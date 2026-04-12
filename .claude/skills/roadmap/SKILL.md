@@ -49,6 +49,12 @@ When conversation converges:
 - Build on what the user says
 - If an idea has a flaw, say so directly
 
+## Asking questions
+
+- **Default to `AskUserQuestion`** whenever there are identifiable options (2-3 options, never 4 — that feels like a quiz). The user can always pick "Other" for freeform input.
+- **Use `preview`** on options when comparing approaches — show a code snippet or ASCII diagram so the user can visually compare before picking.
+- **Plain text only** for truly open-ended prompts where options would box the user in.
+
 ## What NOT to do
 
 - Don't read the entire crate upfront

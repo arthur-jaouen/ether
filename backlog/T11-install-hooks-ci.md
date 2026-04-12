@@ -2,9 +2,7 @@
 id: T11
 title: install-hooks subcommand and GitHub Actions CI
 size: S
-status: blocked
-depends_on:
-  - T7
+status: ready
 priority: 8
 ---
 

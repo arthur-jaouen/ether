@@ -47,22 +47,17 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
 
 ## Self-Review + Verify (parallel)
 
-16. **Launch both in a single message:**
-    - **Background:** Spawn a review subagent (`subagent_type: general-purpose`, `model: "haiku"`, `run_in_background: true`) with the diff and the task description.
+16. **Size the review.** Run `git diff main --stat` and scan `git diff main` for `unsafe`, `HashMap`, or new test files. If the diff is under **30 changed lines** AND has none of those markers, skip the subagent and self-review inline against the checks listed in `.claude/agents/reviewer.md` while `ether-forge check` runs. Otherwise, launch both of the following in a single message:
+    - **Background:** Spawn the reviewer subagent (`subagent_type: reviewer`, `run_in_background: true`). The agent is pinned to `haiku` and owns its own tool allowlist — do not override.
     - **Foreground:** `ether-forge check` (fmt + clippy + test in one call).
 
-Review subagent prompt:
+Review subagent prompt (pass the task ID and worktree path only — the agent fetches the diff itself so it never enters the parent context):
 
-> Review this diff for the Ether ECS Rust workspace. Check for:
+> Review task **T<n>** in worktree `/home/arthur/ether/worktrees/T<n>-<slug>`.
 >
-> **Logic errors** — incorrect assumptions, flawed test logic, no-op tests, assertions that pass with constant returns
-> **Duplication** — test helpers that already exist elsewhere in the workspace
-> **Safety** — unsafe blocks without SAFETY comments, unsound abstractions
-> **Determinism** — unsorted HashMap iteration, non-deterministic output
-> **Whether the change matches the stated goal:** "<paste backlog item description>"
+> `cd` into that worktree, read `CLAUDE.md` and `.claude/rules/*.md`, then run `git diff main` to fetch the change. The task description is: "<paste backlog item title + body>".
 >
-> The diff:
-> <paste git diff output>
+> Apply the checklist in your system prompt and return a terse findings list.
 
 17. When both complete, address findings. Re-run `ether-forge check` if anything changed.
 

@@ -2,7 +2,8 @@
 id: T37
 title: reviewer agent uses ether-forge diff and task context
 size: M
-status: draft
+status: done
+commit: 7875c48
 ---
 
 The `reviewer` subagent (`.claude/agents/reviewer.md`) currently runs raw

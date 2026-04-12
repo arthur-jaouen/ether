@@ -2,7 +2,8 @@
 id: T36
 title: ether-forge task check batches sub-step checkoffs
 size: M
-status: draft
+status: done
+commit: f5d3498
 ---
 
 `/dev` step 13 ("check off each sub-step immediately") is the only remaining

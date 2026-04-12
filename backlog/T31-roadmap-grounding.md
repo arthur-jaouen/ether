@@ -10,6 +10,6 @@ The `/roadmap` skill currently opens without querying backlog state — strategi
 
 ## Sub-steps
 
-- [ ] Edit `.claude/skills/roadmap/SKILL.md`: insert `ether-forge status` + `ether-forge list` as the first setup step.
-- [ ] Optional follow-up in same edit: document `ether-forge groom --json` (dry-run) as a way to see coverage drift vs `ROADMAP.md` before editing it.
-- [ ] Confirm the new preamble fits under the existing worktree setup (grounding runs before `EnterWorktree`, so it's read-only).
+- [x] Edit `.claude/skills/roadmap/SKILL.md`: insert `ether-forge status` + `ether-forge list` as the first setup step.
+- [x] Optional follow-up in same edit: document `ether-forge groom --json` (dry-run) as a way to see coverage drift vs `ROADMAP.md` before editing it.
+- [x] Confirm the new preamble fits under the existing worktree setup (grounding runs before `EnterWorktree`, so it's read-only).

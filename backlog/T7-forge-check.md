@@ -2,9 +2,7 @@
 id: T7
 title: ether-forge check subcommand
 size: S
-status: blocked
-depends_on:
-  - T5
+status: ready
 priority: 4
 ---
 

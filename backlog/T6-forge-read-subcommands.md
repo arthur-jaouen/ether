@@ -2,9 +2,7 @@
 id: T6
 title: ether-forge read subcommands (list, next, get, search, deps, status)
 size: M
-status: blocked
-depends_on:
-  - T5
+status: ready
 priority: 6
 ---
 

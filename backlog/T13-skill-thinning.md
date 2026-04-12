@@ -2,9 +2,7 @@
 id: T13
 title: Thin /dev, /groom, /backlog skills to shell out to ether-forge
 size: M
-status: blocked
-depends_on:
-  - T9
+status: ready
 priority: 10
 ---
 

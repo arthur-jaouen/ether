@@ -13,6 +13,7 @@ pub mod helpers;
 pub mod install_hooks;
 pub mod list;
 pub mod next;
+pub mod preflight;
 pub mod rewrite;
 pub mod search;
 pub mod status;

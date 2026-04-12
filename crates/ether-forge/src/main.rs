@@ -206,6 +206,15 @@ enum Command {
         #[arg(long)]
         path: Option<PathBuf>,
     },
+    /// Verify workspace is safe to create a skill worktree (clean main, fresh base, no stale claim).
+    Preflight {
+        /// Task id (optional). When set, also refuses if a branch already claims it.
+        #[arg(long)]
+        task: Option<String>,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value_os_t = default_backlog_dir())]
+        backlog_dir: PathBuf,
+    },
     /// Install the pre-commit git hook that runs `ether-forge check`.
     InstallHooks {
         /// Repository root (defaults to the current directory).
@@ -271,6 +280,9 @@ fn main() -> anyhow::Result<()> {
             lang,
             path,
         }) => cmd::rewrite::run(&pattern, &to, &lang, path.as_deref()),
+        Some(Command::Preflight { task, backlog_dir }) => {
+            cmd::preflight::run(&backlog_dir, task.as_deref())
+        }
         Some(Command::InstallHooks { repo_root }) => cmd::install_hooks::run(&repo_root),
     }
 }

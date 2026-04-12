@@ -154,6 +154,47 @@ Other skills (`/groom`, future review-only slash commands) reuse the same primit
 4. 0.5.4 Pass B — forge review primitives (M, one subcommand at a time)
 5. 0.5.3 rust-analyzer daemon (L, gated — revisit decision before starting)
 
+## Phase 0.5.5 — Review loop closure
+
+Goal: finish the review-agent investment. Pass B shipped four forge primitives (`diff`, `task --context`, `grep <recipe>`, `helpers`) to back the reviewer, but the reviewer agent's tool allowlist never granted `ether-forge`, so the primitives are unused. Close that gap, plug the known doctest hole in `check`, and make `blocker` findings actually block commits.
+
+### 0.5.5.1 — Wire reviewer to Pass B (S)
+
+`.claude/agents/reviewer.md`:
+
+- Extend `tools:` with `Bash(ether-forge diff:*)`, `Bash(ether-forge task:*)`, `Bash(ether-forge grep:*)`, `Bash(ether-forge helpers:*)`.
+- Rewrite "On every invocation" to lead with forge primitives:
+  1. `ether-forge task <id> --context` — goal + linked ROADMAP in one blob
+  2. `ether-forge diff` — scoped, lock-stripped, size-capped diff (replaces raw `git diff main`)
+  3. `ether-forge grep unsafe-without-safety | hashmap-iter | todo | dead-code` — systematic recipe sweep
+  4. `ether-forge helpers` before flagging any "duplicate helper" finding
+- Update `/dev` step 16 prompt to pass only `task_id` and worktree path — the agent resolves context itself, shrinking parent context further.
+
+### 0.5.5.2 — Close doctest gap in `ether-forge check` (S)
+
+`ether-forge check` currently runs clippy + nextest. Doctests are silently skipped — a known blind spot acknowledged in 0.5.1 and never resolved.
+
+- Add a third chained step: `cargo test --workspace --doc -q` (fail-fast after nextest).
+- Accept the ~1–2s cost; still a single invocation from the skill's POV.
+- Regression test: a doctest with `assert!(false)` must make `ether-forge check` exit nonzero.
+
+### 0.5.5.3 — Enforce reviewer severity (M)
+
+Today `/dev` step 17 says "address findings" — the main agent decides, and `blocker` items carry no mechanical weight. Make the enforcement structural.
+
+- **Reviewer output contract.** `.claude/agents/reviewer.md` emits a JSON artifact to a well-known path (`target/.ether-forge/review-T<n>.json`) with shape `{"blockers": [...], "nits": [...]}`, alongside the terse prose summary for the main agent.
+- **Forge commit gate.** `ether-forge commit` auto-discovers the JSON artifact for the current task ID. If `blockers` is non-empty, the command refuses with a listing. `--force-review` escape hatch for documented false positives, recorded in a commit trailer.
+- **Skill wiring.** `/dev` step 16 points the reviewer at the well-known path; step 18's existing `ether-forge commit T<n> -a` picks it up with no extra orchestration.
+
+### Ordering
+
+1. 0.5.5.1 reviewer wiring (S) — unblocks dormant Pass B investment immediately; pure config/prompt edit.
+2. 0.5.5.2 doctest gap (S) — independent, small, removes a known blind spot.
+3. 0.5.5.3a reviewer JSON output contract (S) — depends on 0.5.5.1.
+4. 0.5.5.3b forge commit gate + /dev wiring (S) — depends on 0.5.5.3a.
+
+Non-goals: reviewer model change (stays on haiku), telemetry/velocity tracking, parallel-`/dev` coordination.
+
 ## Phase 1 — Core ECS
 
 Goal: a minimal but functional ECS with World, Entity, Component storage, and basic queries.

@@ -1,0 +1,9 @@
+[package]
+name = "ether"
+version = "0.1.0"
+edition = "2021"
+description = "Ether ECS — a lightweight Entity Component System"
+
+[dependencies]
+ether-core = { path = "../ether-core" }
+ether-macros = { path = "../ether-macros" }

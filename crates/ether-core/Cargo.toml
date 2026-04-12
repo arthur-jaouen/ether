@@ -1,0 +1,7 @@
+[package]
+name = "ether-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core ECS primitives: World, Entity, Component storage"
+
+[dependencies]

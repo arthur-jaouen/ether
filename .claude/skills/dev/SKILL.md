@@ -1,6 +1,7 @@
 ---
 name: dev
 description: Autonomous development session on the Ether ECS workspace. Picks a backlog item, implements it, tests it, self-reviews, and commits.
+argument-hint: [T<n> or empty for next ready]
 ---
 
 # Ether Development Session
@@ -38,7 +39,7 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
 
 12. Implement the backlog item. Read only the sections of files you need (`offset`/`limit`). Grep first to locate code.
 13. After completing each sub-step, check it off immediately: `- [ ]` → `- [x]`.
-14. Before writing test helpers, search for existing ones (`grep -rn 'fn ent\|fn spawn_test\|fn test_world' crates/ tests/`). Reuse — do NOT duplicate.
+14. Before writing test helpers, search for existing ones with the Grep tool (pattern `fn (ent|spawn_test|test_world)`, glob `crates/**/*.rs`, or type `rust`). Reuse — do NOT duplicate.
 15. Write tests for any new or changed functionality. For each new test, verify: "Would this pass if the function returned a constant?" If yes, needs different inputs/assertions.
 16. **Scaffolding dead code:** if clippy flags `dead_code` on items a *later* backlog task will consume, add `#[allow(dead_code)]` with a `// FIXME(T<n>):` comment naming the unblocking task. Never silence clippy without a FIXME.
 

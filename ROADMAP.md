@@ -227,8 +227,28 @@ Non-goals: new `ether-forge` subcommands (the surface is already sufficient), ch
 4. `/backlog` fill-in (S) — expose `get`, `search`, `deps`, `next` as first-class verbs.
 5. Remove `ether-forge worktree` subcommand + tests (S, Rust).
 6. `ether-forge preflight` subcommand (M, Rust) — blocks on #5 only in the sense that both touch the CLI surface; otherwise independent.
+7. `ether-forge merge` subcommand (M, Rust) — exit-side mirror of preflight; independent of earlier items beyond sharing the CLI surface.
 
-Items 1–5 are S-sized and independent. Item 6 is the only Rust work beyond a subcommand deletion.
+Items 1–5 are S-sized and independent. Items 6–7 are the only Rust work beyond a subcommand deletion.
+
+## Phase 0.5.7 — Skill wrap-up convergence
+
+Goal: mirror preflight on the exit side. Step 23 of `/dev` (and the equivalent wrap-up in `/groom` and `/roadmap`) strings together four raw git calls that each have a known failure mode — ff-merge refuses when `main` advanced during the session, `git worktree remove` errors when the directory is already gone, and `git branch -d` refuses if the branch is "not fully merged" even when the content is identical. The fallback is always the same: rebase onto current main, retry, then clean up manually. Fold it into one forge primitive.
+
+New forge primitive: `ether-forge merge T<n>`. From inside the worktree (or with `--worktree <path>` from main), it:
+
+- Refuses if the worktree is dirty or has commits ahead that aren't part of the task branch lineage (protect in-progress work).
+- Fetches the current `main` tip, rebases the task branch onto it if `main` advanced, and re-runs `ether-forge check` post-rebase (a rebase can break a previously-green branch).
+- Fast-forwards `main` to the rebased branch.
+- Removes the worktree directory (idempotent — silently skips if already gone), prunes stale worktree metadata, and deletes the branch.
+- `--keep` escape hatch leaves the worktree + branch in place after the merge (for inspection / re-runs).
+- Honors the existing reviewer-blocker gate the same way `commit` does: refuse if `target/.ether-forge/review-T<n>.json` has blockers, unless `--force-review`.
+
+Skill wiring: `/dev` step 23 collapses from ~6 lines of git + ExitWorktree dance to one `ether-forge merge T<n>` call gated behind the existing `AskUserQuestion`. `/groom` and `/roadmap` pick up the same call.
+
+Related baseline fix (already applied): `.claude/scheduled_tasks.lock` is a harness artifact and lives in `.gitignore` so preflight doesn't trip on it.
+
+Non-goals: teaching `merge` to resolve conflicts (refuses instead, hands back to the user), support for non-ff merges, cross-branch merges.
 
 ## Phase 1 — Core ECS
 

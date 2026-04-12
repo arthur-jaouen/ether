@@ -14,7 +14,7 @@ Review recent activity and improve your own knowledge base. Present all proposed
 - Read memory index: check for `MEMORY.md` in the project memory directory
 - Read all memory files referenced in the index
 - Read existing skills: `.claude/skills/*/SKILL.md`
-- Read `CLAUDE.md`
+- (`CLAUDE.md` is already auto-loaded into context — no need to re-read)
 
 ## Step 2: Check memory health
 

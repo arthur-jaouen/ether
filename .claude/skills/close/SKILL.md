@@ -1,6 +1,7 @@
 ---
 name: close
 description: Wrap up the current session — commit uncommitted changes (including worktrees) and report final state.
+argument-hint: []
 ---
 
 # Close session
@@ -24,9 +25,9 @@ Commit outstanding changes and report final state.
       ```
       Co-Authored-By: Claude <noreply@anthropic.com>
       ```
-   d. If the worktree is a groom/roadmap branch, use `AskUserQuestion` to ask about merging (options: "Merge and delete" / "Keep branch")
+   d. For any non-main branch with commits ahead of `main` (dev-T<n>, groom-*, roadmap-*), use `AskUserQuestion` to ask about merging (options: "Merge and delete" / "Keep branch"). Dev worktrees mid-task (unchecked sub-steps) should be flagged as "Keep", not offered for merge.
 
-4. **Report final state:**
+4. **Report final state.** Run `ether-forge status` for the backlog snapshot — don't hand-count.
    ```
    ## Session closed
 
@@ -37,7 +38,7 @@ Commit outstanding changes and report final state.
    - <path> [<branch>] — clean | N uncommitted changes
 
    ### Backlog snapshot
-   - N ready, N blocked, N done
+   <ether-forge status output>
    ```
 
 ## Rules

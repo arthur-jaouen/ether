@@ -57,6 +57,62 @@ Configured in `.claude/settings.json`. The harness (not the model) runs these, s
 
 Rollout: hooks land alongside the matching ether-forge subcommands, but the bash fallbacks mean none of them are blocked on the Rust work.
 
+## Phase 0.5 — Claude tooling
+
+Goal: make Claude's exploration, edit, and feedback loop cheaper and more semantically accurate. Where Phase 0 automates the *process*, this phase automates the *code work itself*. Shipped as `ether-forge` subcommands where it fits, standalone tools where it doesn't.
+
+Ordering is deliberate: each phase is independently useful, and each later phase is a larger commitment than the last. Stop after 0.5.2 if 0.5.3 stops looking worth it.
+
+### 0.5.1 — Feedback loop (highest leverage, smallest scope)
+
+Rewrite `ether-forge check` to minimize wall-clock and output tokens. On a green run it should print ~2 lines; on failure it should print only errors, grouped, no progress noise.
+
+Concrete invocation:
+
+```
+CARGO_TERM_COLOR=never cargo clippy --workspace --all-targets \
+  --message-format=short -q -- -D warnings \
+ && CARGO_TERM_COLOR=never cargo nextest run --workspace \
+  --failure-output=final --status-level=fail --hide-progress-bar
+```
+
+- Clippy subsumes `cargo check` (runs it internally) — one pass instead of two.
+- `--message-format=short` gives `file:line: error: msg` — ~10× cheaper in tokens than human output, no JSON parsing needed.
+- `cargo-nextest` replaces `cargo test`: per-test process isolation, ~30% faster, grouped failure output. One-time `cargo install cargo-nextest`. Doctests still need `cargo test --doc` separately — add as a third step or accept the gap.
+- Fail-fast via `&&` — no point running tests on a broken build.
+
+Non-goals: sccache (marginal at 3 crates, can slow proc-macros), experimental `--changed-since` test impact (file-level only, `-p <crate>` is nearly as good).
+
+### 0.5.2 — Structural search & refactor
+
+Wrap [ast-grep](https://ast-grep.github.io/) as `ether-forge find` and `ether-forge rewrite` (or standalone — ast-grep is already a good CLI). The point isn't to reinvent it; it's to standardize *one* structural tool so skills and Claude converge on it instead of falling back to regex.
+
+Capabilities gained:
+
+- Find patterns like `$X.unwrap()`, `HashMap::new()`, `match $E { $$$ARMS }` with Rust-aware parsing.
+- Rewrite field renames across struct literals *and* patterns in one pass (regex can't do this safely).
+- Rule files checked into `.claude/rules/sg/` for repeatable audits (e.g. "no `.unwrap()` in ether-core").
+
+Fall back to Grep when: single-identifier rename in a tight scope, doc/comment edits, or non-Rust files (`backlog/*.md`). Fall back to `rust-analyzer ssr` only for workspace-wide public-API renames where import resolution matters.
+
+### 0.5.3 — Semantic navigation (largest, highest risk — gated)
+
+`ether-forge nav callers <sym>`, `nav impls <trait>`, `nav def <sym>`, `nav type <file>:<line>:<col>`. Backed by **rust-analyzer as a persistent daemon** — the only option on stable Rust that answers all four queries correctly (rustdoc JSON is nightly and can't see call sites; syn can't do type resolution; rustc metadata has no stable consumer API).
+
+Architecture:
+
+- `ether-forge nav` starts a long-lived `rust-analyzer` subprocess on first use, speaks LSP over stdio, caches the pid in `target/.ether-forge/` or similar.
+- `workspace/symbol` resolves `foo::bar` → position before issuing the real query, so the CLI surface stays name-based.
+- Cold start is 5-30s on this workspace; warm queries are ms. Daemon idle-timeout (~5 min) prevents zombie processes.
+
+**Gate:** don't start this until 0.5.1 and 0.5.2 are in use and their limits are felt. At 3 crates, grep + ast-grep may already cover 90% of navigation needs. Revisit when the codebase grows or when a concrete refactor is blocked by "find all callers."
+
+### Ordering
+
+1. 0.5.1 feedback loop (S, `ether-forge check` rewrite + nextest install docs)
+2. 0.5.2 ast-grep wrapper (S or M, depending on whether it's a thin pass-through or adds a rule-file convention)
+3. 0.5.3 rust-analyzer daemon (L, gated — revisit decision before starting)
+
 ## Phase 1 — Core ECS
 
 Goal: a minimal but functional ECS with World, Entity, Component storage, and basic queries.

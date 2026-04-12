@@ -2,9 +2,7 @@
 id: T16
 title: Claude hooks — SessionStart status and SessionEnd validate
 size: S
-status: blocked
-depends_on:
-  - T14
+status: ready
 priority: 9
 ---
 

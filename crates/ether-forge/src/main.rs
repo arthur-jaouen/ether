@@ -70,6 +70,25 @@ enum Command {
         #[arg(long, default_value = "backlog")]
         backlog_dir: PathBuf,
     },
+    /// Create a worktree and branch for a task.
+    Worktree {
+        /// Task id (e.g. `T9`).
+        id: String,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+    },
+    /// Run `check`, then `git commit` with the task's title as the message.
+    Commit {
+        /// Task id (e.g. `T9`).
+        id: String,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value = "backlog")]
+        backlog_dir: PathBuf,
+        /// Extra args forwarded to `git commit` (e.g. `-a`, additional `-m`).
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        extra: Vec<String>,
+    },
     /// Mark a task done and cascade dependency updates across the backlog.
     Done {
         /// Task id (e.g. `T8`).
@@ -101,6 +120,12 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Search { query, backlog_dir }) => cmd::search::run(&backlog_dir, &query),
         Some(Command::Deps { id, backlog_dir }) => cmd::deps::run(&backlog_dir, &id),
         Some(Command::Status { backlog_dir }) => cmd::status::run(&backlog_dir),
+        Some(Command::Worktree { id, backlog_dir }) => cmd::worktree::run(&backlog_dir, &id),
+        Some(Command::Commit {
+            id,
+            backlog_dir,
+            extra,
+        }) => cmd::commit::run(&backlog_dir, &id, &extra),
         Some(Command::Done {
             id,
             commit,

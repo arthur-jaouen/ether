@@ -19,12 +19,33 @@ Binary: `cargo run -p ether-forge -- <subcommand>`. Subcommands:
 
 Parses `backlog/*.md` and `backlog/done/*.md` YAML frontmatter. Standalone crate — no dependency on ether-core or ether-macros.
 
-### Future subcommands
+### Lifecycle subcommands (high leverage)
 
-As the project grows, ether-forge can absorb more process tooling:
-- `check` — pre-commit verification (test + clippy + fmt in one command)
-- `groom` — lint/audit logic currently in the `/groom` skill
-- `init-worktree T<n>` — create worktree + branch atomically
+These eliminate the most error-prone manual steps in the dev loop:
+
+- `done T<n> [--commit <sha>]` — mark task done, apply cascade rule (scan all tasks, remove completed ID from `depends_on`, flip `blocked` → `ready` when empty), move file to `backlog/done/`. Single atomic operation.
+- `worktree T<n>` — create `worktrees/T<n>-<slug>` + branch `task/T<n>` from main, print the path to `cd` into.
+- `commit T<n>` — run `check`, then `git commit` with a message prefixed by the task ID and title pulled from frontmatter.
+- `check` — pre-commit verification: `cargo test --workspace && cargo clippy --workspace -- -D warnings && cargo fmt --all -- --check`.
+- `validate` — lint backlog integrity: orphan `depends_on`, duplicate IDs, malformed frontmatter, `blocked` tasks with empty deps, `done` tasks missing `commit` field.
+- `groom` — audit logic currently embedded in the `/groom` skill (coverage diff vs ROADMAP, propose missing tasks).
+
+### Git & CI automation
+
+- `ether-forge install-hooks` — writes `.git/hooks/pre-commit` that runs `ether-forge check`. Opt-in, idempotent.
+- `.github/workflows/ci.yml` — runs `ether-forge check` on PR. Blocks merge on failure.
+
+### Skill thinning
+
+With the above in place, `/dev`, `/groom`, and `/backlog` skills become ~20-line orchestrators that shell out to `ether-forge` instead of parsing YAML in bash. Skills own conversation flow; ether-forge owns state mutation.
+
+### Ordering
+
+1. `done` + cascade (highest leverage — replaces the most fragile manual step)
+2. `check` + `install-hooks` (unblocks safer autonomous commits)
+3. `worktree` + `commit` (smooths the `/dev` loop)
+4. `validate` (catches drift early)
+5. `groom` migration + CI workflow (last, once the primitives are stable)
 
 ## Phase 1 — Core ECS
 

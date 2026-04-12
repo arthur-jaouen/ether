@@ -45,6 +45,7 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`.
     - Reuse shared helpers — do NOT duplicate
 14. Write tests for any new or changed functionality
     - For each new test, verify: "Would this pass if the function returned a constant?" If yes, needs different inputs/assertions.
+15. **Scaffolding dead code:** if clippy flags `dead_code` on items a *later* backlog task will consume, add `#[allow(dead_code)]` with a `// FIXME(T<n>):` comment naming the task that will remove it. Never silence clippy without a FIXME pointing to the unblocking task.
 
 ## Self-Review + Verify (parallel)
 

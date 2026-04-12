@@ -31,15 +31,15 @@ Plan what's next for an Ether area. **Conversation with structured input** — a
 
 When conversation converges:
 
-8. Create a worktree:
-   ```bash
-   git worktree add worktrees/roadmap-<topic> -b roadmap/<topic> main
-   ```
+8. Call `EnterWorktree` with `name: "roadmap-<topic>"` so every tool (including `Edit` on `ROADMAP.md`) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so edit in place.
 9. Ask: "Want me to write this into ROADMAP.md?"
 10. Update `ROADMAP.md` — replace/update the relevant section with concrete numbers.
 11. Tell user: "Run `/groom <section>` to generate tasks from this."
 12. Commit in worktree.
-13. Ask if user wants to merge into `main`.
+13. Ask if the user wants to merge into `main`. On confirmation:
+    - `ExitWorktree` with `action: "keep"` to return the session to the main checkout.
+    - `git merge --ff-only roadmap-<topic>`.
+    - After a successful merge, `git worktree remove .claude/worktrees/roadmap-<topic>` and `git branch -d roadmap-<topic>`. If the user declines, leave the worktree intact (the earlier `ExitWorktree` used `keep`).
 
 ## Conversation style
 

@@ -19,6 +19,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Run the workspace verification suite (test, clippy, fmt).
+    Check,
     /// Mark a task done and cascade dependency updates across the backlog.
     Done {
         /// Task id (e.g. `T8`).
@@ -39,6 +41,7 @@ fn main() -> anyhow::Result<()> {
             println!("ether-forge: no subcommand given. See --help.");
             Ok(())
         }
+        Some(Command::Check) => cmd::check::run(),
         Some(Command::Done {
             id,
             commit,

@@ -138,6 +138,17 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// List shared test helpers under `crates/*/tests/common/mod.rs`.
+    ///
+    /// Used by the review subagent to check for duplicated test fixtures
+    /// across crates — each entry is `<crate>\t<fn_name>`, with
+    /// `[DUPLICATE]` appended whenever the same helper name appears in more
+    /// than one crate.
+    Helpers {
+        /// Crates directory (defaults to `./crates`).
+        #[arg(long, default_value = "crates")]
+        crates_dir: PathBuf,
+    },
     /// Run a named ripgrep recipe from `.claude/rules/grep/`.
     Grep {
         /// Recipe name (file stem under `.claude/rules/grep/`).
@@ -224,6 +235,7 @@ fn main() -> anyhow::Result<()> {
             apply,
             json,
         }) => cmd::groom::run(&backlog_dir, &roadmap, apply, json),
+        Some(Command::Helpers { crates_dir }) => cmd::helpers::run(&crates_dir),
         Some(Command::Grep { recipe, list }) => cmd::grep::run(recipe.as_deref(), list),
         Some(Command::Find {
             pattern,

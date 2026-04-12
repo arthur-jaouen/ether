@@ -56,15 +56,14 @@ All commands run from `/home/arthur/ether`.
 
 ## Phase 5 — Apply
 
-10. Create a groom worktree:
-    ```bash
-    git worktree add worktrees/groom-YYYY-MM-DD -b groom-YYYY-MM-DD main
-    cd worktrees/groom-YYYY-MM-DD
-    ```
+10. Call `EnterWorktree` with `name: "groom-YYYY-MM-DD"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so work in place.
 11. Apply auto-fixes via `ether-forge groom --apply`. Apply proposed changes (new task files, edits, ROADMAP.md updates) directly in the worktree.
 12. `ether-forge validate` to confirm integrity before committing.
 13. Commit with a descriptive message.
-14. Ask whether to merge into `main` and clean up the worktree. If `git merge --ff-only` fails because `main` advanced during the groom, **rebase the groom branch onto main** (dropping hunks for files that no longer exist, e.g. tasks shipped in the meantime), then ff-merge. Never replay the edits directly on main — that orphans the branch commit and forces a destructive `git branch -D` later.
+14. Ask whether to merge into `main`. On confirmation:
+    - `ExitWorktree` with `action: "keep"` to return the session to the main checkout.
+    - `git merge --ff-only groom-YYYY-MM-DD`. If ff fails because `main` advanced, re-enter the worktree, **rebase the groom branch onto main** (dropping hunks for files that no longer exist, e.g. tasks shipped in the meantime), exit again, then ff-merge. Never replay edits directly on main — that orphans the branch commit.
+    - After a successful merge, `git worktree remove .claude/worktrees/groom-YYYY-MM-DD` and `git branch -d groom-YYYY-MM-DD`. If the user declines the merge, leave the worktree intact (the earlier `ExitWorktree` used `keep`).
 
 ## Rules
 

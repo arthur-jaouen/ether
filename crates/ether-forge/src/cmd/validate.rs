@@ -1,4 +1,10 @@
 //! `ether-forge validate` — integrity lint across the backlog.
+//!
+//! Two modes:
+//! - default: schema-lint the backlog directory.
+//! - `--diff-only`: scope code-review checks (SAFETY on new unsafe blocks,
+//!   new `HashMap`/`HashSet` mentions, new `TODO`/`FIXME` markers) to files
+//!   touched by `git diff main`.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -542,5 +548,515 @@ mod tests {
             .errors
             .iter()
             .any(|f| f.category == Category::Filename));
+    }
+}
+
+// =============================================================================
+// `--diff-only` mode: code-review checks scoped to `git diff main`.
+// =============================================================================
+
+/// Run validate in diff-only mode: scope checks to files touched by
+/// `git diff main` (or the task-scoped worktree diff when `task_id` is given).
+///
+/// Prints one finding per line to stderr and returns an error on any hit;
+/// prints `OK` and returns `Ok(())` on a clean diff.
+pub fn run_diff_only(backlog_dir: &Path, task_id: Option<&str>) -> Result<()> {
+    let work_dir = crate::cmd::diff::resolve_work_dir(backlog_dir, task_id)?;
+    let raw = crate::cmd::diff::git_diff_main(&work_dir)?;
+    let diff = crate::cmd::diff::filter_lockfiles(&raw);
+    let files = parse_diff(&diff);
+    let findings = diff_checks(&files, &work_dir);
+
+    if findings.is_empty() {
+        println!("OK");
+        Ok(())
+    } else {
+        for f in &findings {
+            eprintln!("{f}");
+        }
+        anyhow::bail!("{} diff finding(s)", findings.len());
+    }
+}
+
+/// A parsed file section from a unified diff — new-file path plus added lines.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DiffFile {
+    /// Path on the new side (`b/<path>`), relative to the repo root.
+    pub path: String,
+    /// Lines added by this diff — each with its line number in the new file.
+    pub added: Vec<AddedLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct AddedLine {
+    /// 1-based line number in the new file.
+    pub lineno: u32,
+    /// Line text (without the leading `+`, without a trailing newline).
+    pub text: String,
+}
+
+/// Parse a unified-diff string into per-file lists of added lines.
+///
+/// Deleted-file sections (`+++ /dev/null`) and binary sections are skipped;
+/// hunk headers drive the new-file line counter for every `+` line. Lines
+/// starting with `\` (e.g. `\ No newline at end of file`) are ignored.
+pub(crate) fn parse_diff(diff: &str) -> Vec<DiffFile> {
+    let mut out: Vec<DiffFile> = Vec::new();
+    let mut current: Option<DiffFile> = None;
+    let mut new_line: u32 = 0;
+    let mut in_hunk = false;
+    let mut skip_section = false;
+
+    for line in diff.lines() {
+        if let Some(rest) = line.strip_prefix("diff --git ") {
+            // Flush previous file.
+            if let Some(f) = current.take() {
+                if !skip_section {
+                    out.push(f);
+                }
+            }
+            // Seed a placeholder using the `b/` path from the header; it may
+            // be overwritten by a later `+++ b/<path>` line.
+            let path = extract_b_path(rest).unwrap_or_default();
+            current = Some(DiffFile {
+                path,
+                added: Vec::new(),
+            });
+            new_line = 0;
+            in_hunk = false;
+            skip_section = false;
+            continue;
+        }
+
+        if skip_section || current.is_none() {
+            continue;
+        }
+
+        if let Some(rest) = line.strip_prefix("+++ ") {
+            if rest.starts_with("/dev/null") {
+                skip_section = true;
+            } else if let Some(p) = rest.strip_prefix("b/") {
+                if let Some(f) = current.as_mut() {
+                    f.path = p.to_string();
+                }
+            }
+            continue;
+        }
+
+        if line.starts_with("--- ") {
+            continue;
+        }
+
+        if line.starts_with("Binary files ") {
+            skip_section = true;
+            continue;
+        }
+
+        if let Some(rest) = line.strip_prefix("@@ ") {
+            if let Some(start) = parse_hunk_new_start(rest) {
+                new_line = start;
+                in_hunk = true;
+            } else {
+                in_hunk = false;
+            }
+            continue;
+        }
+
+        if !in_hunk {
+            continue;
+        }
+
+        if line.starts_with("\\ ") {
+            // "\ No newline at end of file" — skip, don't advance counters.
+            continue;
+        }
+
+        if let Some(text) = line.strip_prefix('+') {
+            if let Some(f) = current.as_mut() {
+                f.added.push(AddedLine {
+                    lineno: new_line,
+                    text: text.to_string(),
+                });
+            }
+            new_line += 1;
+        } else if line.starts_with('-') {
+            // Removed line — only consumes old-file counter.
+        } else {
+            // Context line (starts with space, or empty).
+            new_line += 1;
+        }
+    }
+
+    if let Some(f) = current {
+        if !skip_section {
+            out.push(f);
+        }
+    }
+    out
+}
+
+/// Extract the `b/<path>` component from a `diff --git a/X b/Y` header tail.
+fn extract_b_path(tail: &str) -> Option<String> {
+    // Header format: `a/<path> b/<path>`; split at the space separating the
+    // two quoted-or-bare paths. Git uses bare paths unless they contain odd
+    // characters; we accept bare form only and fall back to the last `b/...`.
+    let mut rest = tail;
+    if let Some(space) = rest.find(" b/") {
+        rest = &rest[space + 3..];
+        return Some(rest.trim_end().to_string());
+    }
+    None
+}
+
+/// Parse the new-side start line from a hunk header body (after `@@ `).
+///
+/// Accepts both `-a,b +c,d @@...` and `-a +c @@...` shapes.
+fn parse_hunk_new_start(body: &str) -> Option<u32> {
+    // Find the `+` token.
+    let plus_idx = body.find('+')?;
+    let after = &body[plus_idx + 1..];
+    // Read digits up to `,` or space.
+    let end = after.find([',', ' ']).unwrap_or(after.len());
+    after[..end].parse().ok()
+}
+
+/// Run all diff-only checks and return a sorted list of findings.
+pub(crate) fn diff_checks(files: &[DiffFile], work_dir: &Path) -> Vec<String> {
+    let mut findings: Vec<String> = Vec::new();
+    for file in files {
+        if !is_rust_file(&file.path) {
+            continue;
+        }
+        findings.extend(check_unsafe_missing_safety(file, work_dir));
+        findings.extend(check_hashmap_iteration(file));
+        findings.extend(check_todo_fixme(file));
+    }
+    findings.sort();
+    findings
+}
+
+fn is_rust_file(path: &str) -> bool {
+    path.ends_with(".rs")
+}
+
+/// Flag added lines that open an `unsafe` block or fn without a `// SAFETY:`
+/// comment within the 5 preceding lines of the on-disk file.
+///
+/// Reading from disk lets us see pre-existing SAFETY comments that weren't
+/// touched by the diff, avoiding false positives when only the unsafe block
+/// itself was added.
+fn check_unsafe_missing_safety(file: &DiffFile, work_dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut file_lines: Option<Vec<String>> = None;
+    for added in &file.added {
+        if !line_opens_unsafe(&added.text) {
+            continue;
+        }
+        // Lazily read the file once.
+        if file_lines.is_none() {
+            let abs = work_dir.join(&file.path);
+            match std::fs::read_to_string(&abs) {
+                Ok(s) => file_lines = Some(s.lines().map(|l| l.to_string()).collect()),
+                Err(_) => {
+                    file_lines = Some(Vec::new());
+                }
+            }
+        }
+        let lines = file_lines.as_ref().unwrap();
+        let idx = added.lineno.saturating_sub(1) as usize;
+        let start = idx.saturating_sub(5);
+        let window = lines.get(start..idx).unwrap_or(&[]);
+        let has_safety = window.iter().any(|l| l.contains("// SAFETY:"));
+        if !has_safety {
+            out.push(format!(
+                "unsafe: {}:{}: new `unsafe` without `// SAFETY:` comment in the 5 preceding lines",
+                file.path, added.lineno
+            ));
+        }
+    }
+    out
+}
+
+/// True if an added line opens an `unsafe` block or declares `unsafe fn`.
+///
+/// Skips comment lines and string contexts heuristically — we only match on
+/// the leading non-whitespace token to avoid flagging `// unsafe {` notes.
+fn line_opens_unsafe(text: &str) -> bool {
+    let trimmed = text.trim_start();
+    if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
+        return false;
+    }
+    // `unsafe {`, `unsafe fn`, `pub unsafe fn`, `unsafe impl`.
+    has_unsafe_keyword(trimmed)
+}
+
+fn has_unsafe_keyword(s: &str) -> bool {
+    // Walk tokens separated by whitespace; look for `unsafe` followed by
+    // `{`, `fn`, `impl`, or `trait`.
+    let mut prev_is_unsafe = false;
+    for tok in s.split_whitespace() {
+        if prev_is_unsafe
+            && (tok.starts_with('{') || tok == "fn" || tok == "impl" || tok == "trait")
+        {
+            return true;
+        }
+        // Trim trailing punctuation for token comparison.
+        let clean = tok.trim_end_matches([',', ';']);
+        prev_is_unsafe = clean == "unsafe";
+    }
+    false
+}
+
+/// Flag added lines that introduce `HashMap` or `HashSet` references, which
+/// risk non-deterministic iteration order if they reach output paths.
+fn check_hashmap_iteration(file: &DiffFile) -> Vec<String> {
+    let mut out = Vec::new();
+    for added in &file.added {
+        if is_comment_line(&added.text) {
+            continue;
+        }
+        if added.text.contains("HashMap") || added.text.contains("HashSet") {
+            out.push(format!(
+                "hash: {}:{}: new `HashMap`/`HashSet` mention — verify iteration order is sorted before reaching output",
+                file.path, added.lineno
+            ));
+        }
+    }
+    out
+}
+
+/// Flag added lines that introduce a new `TODO` or `FIXME` marker.
+fn check_todo_fixme(file: &DiffFile) -> Vec<String> {
+    let mut out = Vec::new();
+    for added in &file.added {
+        let text = &added.text;
+        if text.contains("TODO") || text.contains("FIXME") {
+            out.push(format!(
+                "todo: {}:{}: new `TODO`/`FIXME` marker",
+                file.path, added.lineno
+            ));
+        }
+    }
+    out
+}
+
+fn is_comment_line(text: &str) -> bool {
+    let trimmed = text.trim_start();
+    trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*')
+}
+
+#[cfg(test)]
+mod diff_only_tests {
+    use super::*;
+
+    fn line(n: u32, t: &str) -> AddedLine {
+        AddedLine {
+            lineno: n,
+            text: t.to_string(),
+        }
+    }
+
+    #[test]
+    fn parses_simple_added_lines_with_correct_line_numbers() {
+        let diff = "\
+diff --git a/src/lib.rs b/src/lib.rs
+index 1..2 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,3 +1,5 @@
+ one
+ two
++three
++four
+ five
+";
+        let files = parse_diff(diff);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "src/lib.rs");
+        assert_eq!(files[0].added, vec![line(3, "three"), line(4, "four")]);
+    }
+
+    #[test]
+    fn parses_multiple_hunks() {
+        let diff = "\
+diff --git a/a.rs b/a.rs
+--- a/a.rs
++++ b/a.rs
+@@ -1,2 +1,3 @@
+ a
++b
+ c
+@@ -10,1 +11,2 @@
+ x
++y
+";
+        let files = parse_diff(diff);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].added, vec![line(2, "b"), line(12, "y")]);
+    }
+
+    #[test]
+    fn skips_deleted_files() {
+        let diff = "\
+diff --git a/gone.rs b/gone.rs
+--- a/gone.rs
++++ /dev/null
+@@ -1,1 +0,0 @@
+-bye
+";
+        let files = parse_diff(diff);
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn handles_new_file_against_dev_null() {
+        let diff = "\
+diff --git a/new.rs b/new.rs
+new file mode 100644
+--- /dev/null
++++ b/new.rs
+@@ -0,0 +1,2 @@
++let x = 1;
++let y = 2;
+";
+        let files = parse_diff(diff);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "new.rs");
+        assert_eq!(
+            files[0].added,
+            vec![line(1, "let x = 1;"), line(2, "let y = 2;")]
+        );
+    }
+
+    #[test]
+    fn skips_binary_sections() {
+        let diff = "\
+diff --git a/img.png b/img.png
+Binary files a/img.png and b/img.png differ
+";
+        let files = parse_diff(diff);
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn check_todo_fixme_flags_added_markers() {
+        let file = DiffFile {
+            path: "a.rs".into(),
+            added: vec![
+                line(1, "// TODO: fix this"),
+                line(2, "let x = 1;"),
+                line(3, "// FIXME(T99): cleanup"),
+            ],
+        };
+        let findings = check_todo_fixme(&file);
+        assert_eq!(findings.len(), 2);
+        assert!(findings[0].contains("a.rs:1"));
+        assert!(findings[1].contains("a.rs:3"));
+    }
+
+    #[test]
+    fn check_hashmap_flags_new_mentions_but_ignores_comments() {
+        let file = DiffFile {
+            path: "a.rs".into(),
+            added: vec![
+                line(1, "use std::collections::HashMap;"),
+                line(2, "// uses HashSet internally"),
+                line(3, "let m: HashSet<u32> = HashSet::new();"),
+            ],
+        };
+        let findings = check_hashmap_iteration(&file);
+        assert_eq!(findings.len(), 2);
+        assert!(findings[0].contains("a.rs:1"));
+        assert!(findings[1].contains("a.rs:3"));
+    }
+
+    #[test]
+    fn has_unsafe_keyword_detects_common_shapes() {
+        assert!(has_unsafe_keyword("unsafe { foo() }"));
+        assert!(has_unsafe_keyword("pub unsafe fn bar()"));
+        assert!(has_unsafe_keyword("unsafe impl Send for X {}"));
+        assert!(has_unsafe_keyword("unsafe trait Marker {}"));
+        assert!(!has_unsafe_keyword("let s = \"unsafe\";"));
+        assert!(!has_unsafe_keyword("fn safe() { ok(); }"));
+    }
+
+    #[test]
+    fn line_opens_unsafe_ignores_comment_lines() {
+        assert!(!line_opens_unsafe("// unsafe { hack }"));
+        assert!(!line_opens_unsafe(" * unsafe fn doc"));
+        assert!(line_opens_unsafe("    unsafe { *p }"));
+    }
+
+    #[test]
+    fn check_unsafe_flags_when_no_safety_comment_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = "a.rs";
+        std::fs::write(
+            dir.path().join(path),
+            "fn caller() {\n    unsafe { ptr::read(p) }\n}\n",
+        )
+        .unwrap();
+        let file = DiffFile {
+            path: path.into(),
+            added: vec![line(2, "    unsafe { ptr::read(p) }")],
+        };
+        let findings = check_unsafe_missing_safety(&file, dir.path());
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].contains("a.rs:2"));
+    }
+
+    #[test]
+    fn check_unsafe_passes_when_safety_comment_in_preceding_context() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = "a.rs";
+        std::fs::write(
+            dir.path().join(path),
+            "fn caller() {\n    // SAFETY: p is non-null by construction.\n    unsafe { ptr::read(p) }\n}\n",
+        )
+        .unwrap();
+        let file = DiffFile {
+            path: path.into(),
+            added: vec![line(3, "    unsafe { ptr::read(p) }")],
+        };
+        let findings = check_unsafe_missing_safety(&file, dir.path());
+        assert!(findings.is_empty(), "unexpected: {findings:?}");
+    }
+
+    #[test]
+    fn diff_checks_scopes_to_rust_files_only() {
+        let files = vec![
+            DiffFile {
+                path: "README.md".into(),
+                added: vec![line(1, "HashMap TODO unsafe { stuff }")],
+            },
+            DiffFile {
+                path: "x.rs".into(),
+                added: vec![line(1, "// TODO: real todo")],
+            },
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let findings = diff_checks(&files, dir.path());
+        // Only the .rs file contributes.
+        assert_eq!(findings.len(), 1);
+        assert!(findings[0].contains("x.rs:1"));
+    }
+
+    #[test]
+    fn parse_hunk_new_start_accepts_both_shapes() {
+        assert_eq!(parse_hunk_new_start("-1,3 +4,5 @@"), Some(4));
+        assert_eq!(parse_hunk_new_start("-1 +4 @@"), Some(4));
+        assert_eq!(parse_hunk_new_start("-0,0 +1,10 @@ fn x"), Some(1));
+    }
+
+    #[test]
+    fn extract_b_path_reads_header_tail() {
+        assert_eq!(
+            extract_b_path("a/src/lib.rs b/src/lib.rs"),
+            Some("src/lib.rs".into())
+        );
+        assert_eq!(
+            extract_b_path("a/sub/foo.rs b/sub/foo.rs"),
+            Some("sub/foo.rs".into())
+        );
     }
 }

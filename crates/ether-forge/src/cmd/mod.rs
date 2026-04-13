@@ -18,6 +18,7 @@ pub mod preflight;
 pub mod review_artifact;
 pub mod rewrite;
 pub mod rules;
+pub mod rules_scan;
 pub mod search;
 pub mod status;
 pub mod task;

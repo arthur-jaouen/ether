@@ -12,9 +12,9 @@ Eliminates the reviewer subagent's repetitive pattern of reading each rule file 
 
 ## Sub-steps
 
-- [ ] New `cmd/rules_scan.rs` that enumerates `.claude/rules/grep/*.yml`
-- [ ] Parse each recipe (reuse existing grep recipe loader if present)
-- [ ] Run every recipe against `git diff main` output and collect matches
-- [ ] Serialize results as `{recipe: [{file, line, text}]}` JSON to stdout
-- [ ] Unit tests with a fixture recipe set and synthetic diff
-- [ ] Wire into `cmd/mod.rs` and update help output
+- [x] New `cmd/rules_scan.rs` that enumerates `.claude/rules/grep/*.yml`
+- [x] Parse each recipe (reuse existing grep recipe loader if present)
+- [x] Run every recipe against `git diff main` output and collect matches
+- [x] Serialize results as `{recipe: [{file, line, text}]}` JSON to stdout
+- [x] Unit tests with a fixture recipe set and synthetic diff
+- [x] Wire into `cmd/mod.rs` and update help output

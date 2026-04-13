@@ -5,7 +5,6 @@ size: M
 status: blocked
 depends_on:
   - T42
-  - T43
   - T44
 ---
 

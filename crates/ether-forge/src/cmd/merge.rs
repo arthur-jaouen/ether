@@ -20,8 +20,9 @@ use std::process::Command;
 use anyhow::{anyhow, bail, Context, Result};
 
 use crate::cmd::check;
-use crate::cmd::commit::{evaluate_gate, load_artifact, review_artifact_path};
+use crate::cmd::commit::{evaluate_gate, load_artifact};
 use crate::cmd::preflight::claiming_branches;
+use crate::cmd::review_artifact;
 use crate::task::find_task;
 
 /// Name of the env var that short-circuits `check::run()` during integration
@@ -223,7 +224,7 @@ pub fn run(
     }
 
     if let Some(id) = task_id.as_deref() {
-        let artifact_path = review_artifact_path(&main_path.join("target"), id);
+        let artifact_path = review_artifact::artifact_path(&main_path.join("target"), id);
         let artifact = load_artifact(&artifact_path)?;
         evaluate_gate(artifact.as_ref(), id, force_review)?;
     }

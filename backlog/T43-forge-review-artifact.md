@@ -12,9 +12,9 @@ Eliminates the reviewer subagent's hand-rolled `mkdir -p` + `Write` dance, and g
 
 ## Sub-steps
 
-- [ ] New `cmd/review_artifact.rs` with clap args for task id + repeated `--blocker`/`--nit`
-- [ ] Parse `file:line:msg` entries, reject malformed ones with clear errors
-- [ ] `mkdir -p` `target/.ether-forge/` and write the JSON file
-- [ ] Also accept `--from-stdin` to read a pre-built JSON payload and validate+normalize it
-- [ ] Tests covering empty arrays, malformed entries, and stdin mode
-- [ ] Update reviewer.md to call `ether-forge review-artifact` instead of raw Write
+- [x] New `cmd/review_artifact.rs` with clap args for task id + repeated `--blocker`/`--nit`
+- [x] Parse `file:line:msg` entries, reject malformed ones with clear errors
+- [x] `mkdir -p` `target/.ether-forge/` and write the JSON file
+- [x] Also accept `--from-stdin` to read a pre-built JSON payload and validate+normalize it
+- [x] Tests covering empty arrays, malformed entries, and stdin mode
+- [x] Update reviewer.md to call `ether-forge review-artifact` instead of raw Write

@@ -218,6 +218,29 @@ enum Command {
         #[arg(long)]
         worktree: Option<PathBuf>,
     },
+    /// Write the canonical reviewer artifact at `target/.ether-forge/review-T<n>.json`.
+    ///
+    /// Replaces the reviewer subagent's hand-rolled `mkdir -p` + `Write` dance.
+    /// `--blocker`/`--nit` accept repeated `file:line:message` triples; pass
+    /// `--from-stdin` instead to read a pre-built JSON payload and have it
+    /// validated and re-emitted in canonical form.
+    ReviewArtifact {
+        /// Task id (e.g. `T43`). Determines the output filename.
+        #[arg(long)]
+        task: String,
+        /// Repeated `file:line:message` blocker entry. May be passed many times.
+        #[arg(long = "blocker")]
+        blockers: Vec<String>,
+        /// Repeated `file:line:message` nit entry. May be passed many times.
+        #[arg(long = "nit")]
+        nits: Vec<String>,
+        /// Read a JSON payload from stdin instead of `--blocker`/`--nit` flags.
+        #[arg(long, conflicts_with_all = ["blockers", "nits"])]
+        from_stdin: bool,
+        /// Target directory root (defaults to `./target`).
+        #[arg(long, default_value = "target")]
+        target_root: PathBuf,
+    },
     /// Verify workspace is safe to create a skill worktree (clean main, fresh base, no stale claim).
     Preflight {
         /// Task id (optional). When set, also refuses if a branch already claims it.
@@ -325,6 +348,13 @@ fn main() -> anyhow::Result<()> {
             force_review,
             worktree.as_deref(),
         ),
+        Some(Command::ReviewArtifact {
+            task,
+            blockers,
+            nits,
+            from_stdin,
+            target_root,
+        }) => cmd::review_artifact::run(&target_root, &task, &blockers, &nits, from_stdin),
         Some(Command::Preflight { task, backlog_dir }) => {
             cmd::preflight::run(&backlog_dir, task.as_deref())
         }

@@ -8,24 +8,16 @@
 //! gate and appends a `Reviewed-by-force: true` trailer so the override is
 //! recorded in the commit message.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, ExitStatus, Stdio};
 
 use anyhow::{anyhow, bail, Context, Result};
-use serde::Deserialize;
 
 use crate::cmd::check;
+use crate::cmd::review_artifact::{self, ReviewArtifact, ReviewEntry};
 use crate::task::find_task;
 
 const FORCE_TRAILER: &str = "Reviewed-by-force: true";
-
-/// Shape of `target/.ether-forge/review-T<n>.json`. Only `blockers` is
-/// load-bearing for the gate; other fields the reviewer emits are ignored.
-#[derive(Debug, Deserialize, Default)]
-pub(crate) struct ReviewArtifact {
-    #[serde(default)]
-    pub blockers: Vec<String>,
-}
 
 /// Outcome of the review gate — decides whether the commit proceeds and
 /// whether a force trailer should be appended.
@@ -37,19 +29,12 @@ pub(crate) enum GateOutcome {
     Forced,
 }
 
-/// Conventional artifact path for a task id, rooted at `target/`.
-pub(crate) fn review_artifact_path(target_root: &Path, id: &str) -> PathBuf {
-    target_root
-        .join(".ether-forge")
-        .join(format!("review-{id}.json"))
-}
-
 /// Read the review artifact. Returns `Ok(None)` when the file is absent so
 /// the gate stays silent for tasks without a review on disk.
 pub(crate) fn load_artifact(path: &Path) -> Result<Option<ReviewArtifact>> {
     match std::fs::read_to_string(path) {
         Ok(body) => {
-            let parsed: ReviewArtifact = serde_json::from_str(&body)
+            let parsed = review_artifact::parse_from_json(&body)
                 .with_context(|| format!("parsing review artifact at {}", path.display()))?;
             Ok(Some(parsed))
         }
@@ -57,6 +42,13 @@ pub(crate) fn load_artifact(path: &Path) -> Result<Option<ReviewArtifact>> {
         Err(err) => Err(anyhow::Error::new(err)
             .context(format!("reading review artifact at {}", path.display()))),
     }
+}
+
+/// Format a single blocker entry as `<file>:<line>: <message>` for the
+/// refusal report. Identical shape to clippy/rustc diagnostics so editors
+/// recognize it as a clickable location.
+fn format_entry(entry: &ReviewEntry) -> String {
+    format!("{}:{}: {}", entry.file, entry.line, entry.message)
 }
 
 /// Core gate logic: pure over an artifact + force flag so it is directly
@@ -77,9 +69,9 @@ pub(crate) fn evaluate_gate(
         "reviewer flagged {} blocker(s) for {id} — commit refused\n",
         blockers.len()
     );
-    for b in blockers {
+    for entry in blockers {
         report.push_str("  - ");
-        report.push_str(b);
+        report.push_str(&format_entry(entry));
         report.push('\n');
     }
     report.push_str("re-run after addressing findings, or pass `--force-review` to override");
@@ -109,7 +101,7 @@ pub(crate) fn commit_argv<'a>(
 pub fn run(backlog_dir: &Path, id: &str, extra: &[String], force_review: bool) -> Result<()> {
     check::run().context("ether-forge check failed — commit aborted")?;
     let task = find_task(backlog_dir, id)?;
-    let artifact_path = review_artifact_path(Path::new("target"), &task.id);
+    let artifact_path = review_artifact::artifact_path(Path::new("target"), &task.id);
     let artifact = load_artifact(&artifact_path)?;
     let outcome = evaluate_gate(artifact.as_ref(), &task.id, force_review)?;
     let message = format!("{}: {}", task.id, task.title);
@@ -138,6 +130,14 @@ mod tests {
     use super::*;
 
     use tempfile::TempDir;
+
+    fn entry(file: &str, line: u32, message: &str) -> ReviewEntry {
+        ReviewEntry {
+            file: file.to_string(),
+            line,
+            message: message.to_string(),
+        }
+    }
 
     #[test]
     fn commit_argv_basic_message() {
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn gate_passes_when_blockers_empty() {
-        let artifact = ReviewArtifact { blockers: vec![] };
+        let artifact = ReviewArtifact::default();
         let outcome = evaluate_gate(Some(&artifact), "T29", false).expect("clean gate");
         assert_eq!(outcome, GateOutcome::Clean);
     }
@@ -182,20 +182,33 @@ mod tests {
     #[test]
     fn gate_refuses_when_blockers_present() {
         let artifact = ReviewArtifact {
-            blockers: vec!["missing SAFETY comment on unsafe block".to_string()],
+            blockers: vec![entry("src/foo.rs", 42, "missing SAFETY comment")],
+            nits: vec![],
         };
         let err =
             evaluate_gate(Some(&artifact), "T29", false).expect_err("blocker must refuse commit");
         let msg = format!("{err}");
         assert!(msg.contains("T29"));
-        assert!(msg.contains("missing SAFETY comment"));
+        assert!(msg.contains("src/foo.rs:42: missing SAFETY comment"));
         assert!(msg.contains("--force-review"));
+    }
+
+    #[test]
+    fn gate_ignores_nits() {
+        let artifact = ReviewArtifact {
+            blockers: vec![],
+            nits: vec![entry("src/bar.rs", 7, "advisory")],
+        };
+        let outcome =
+            evaluate_gate(Some(&artifact), "T29", false).expect("nits must not gate the commit");
+        assert_eq!(outcome, GateOutcome::Clean);
     }
 
     #[test]
     fn gate_force_review_returns_forced() {
         let artifact = ReviewArtifact {
-            blockers: vec!["nondeterministic HashMap iteration".to_string()],
+            blockers: vec![entry("src/baz.rs", 0, "nondeterministic HashMap iteration")],
+            nits: vec![],
         };
         let outcome = evaluate_gate(Some(&artifact), "T29", true).expect("force must bypass gate");
         assert_eq!(outcome, GateOutcome::Forced);
@@ -204,26 +217,48 @@ mod tests {
     #[test]
     fn load_artifact_returns_none_when_missing() {
         let tmp = TempDir::new().unwrap();
-        let path = review_artifact_path(tmp.path(), "T29");
+        let path = review_artifact::artifact_path(tmp.path(), "T29");
         assert!(load_artifact(&path).unwrap().is_none());
     }
 
     #[test]
-    fn load_artifact_reads_blockers_field() {
+    fn load_artifact_reads_structured_entries() {
         let tmp = TempDir::new().unwrap();
-        let path = review_artifact_path(tmp.path(), "T29");
+        let path = review_artifact::artifact_path(tmp.path(), "T29");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, r#"{"blockers":["a","b"],"nits":["ignored"]}"#).unwrap();
+        std::fs::write(
+            &path,
+            r#"{
+                "blockers": [{"file": "a.rs", "line": 1, "message": "boom"}],
+                "nits": [{"file": "b.rs", "line": 0, "message": "tiny"}]
+            }"#,
+        )
+        .unwrap();
         let artifact = load_artifact(&path).unwrap().expect("file present");
-        assert_eq!(artifact.blockers, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(artifact.blockers, vec![entry("a.rs", 1, "boom")]);
+        assert_eq!(artifact.nits, vec![entry("b.rs", 0, "tiny")]);
     }
 
     #[test]
     fn load_artifact_reports_parse_errors() {
         let tmp = TempDir::new().unwrap();
-        let path = review_artifact_path(tmp.path(), "T29");
+        let path = review_artifact::artifact_path(tmp.path(), "T29");
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, "not json").unwrap();
         assert!(load_artifact(&path).is_err());
+    }
+
+    #[test]
+    fn load_artifact_rejects_entries_with_missing_fields() {
+        let tmp = TempDir::new().unwrap();
+        let path = review_artifact::artifact_path(tmp.path(), "T29");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            r#"{"blockers": [{"file": "", "line": 1, "message": "x"}]}"#,
+        )
+        .unwrap();
+        let err = load_artifact(&path).unwrap_err();
+        assert!(format!("{err:#}").contains("empty `file`"));
     }
 }

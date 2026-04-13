@@ -12,9 +12,9 @@ Merges the reviewer's manual "read rules → diff → translate to searches" loo
 
 ## Sub-steps
 
-- [ ] Parse `git diff main` to extract added/modified file paths
-- [ ] Add `--diff-only` flag to `cmd/validate.rs`
-- [ ] Implement SAFETY-comment check on new unsafe blocks
-- [ ] Implement hashmap-iteration check on changed files
-- [ ] Implement TODO/FIXME scan on added lines only
-- [ ] Tests with fixture diffs covering each check
+- [x] Parse `git diff main` to extract added/modified file paths
+- [x] Add `--diff-only` flag to `cmd/validate.rs`
+- [x] Implement SAFETY-comment check on new unsafe blocks
+- [x] Implement hashmap-iteration check on changed files
+- [x] Implement TODO/FIXME scan on added lines only
+- [x] Tests with fixture diffs covering each check

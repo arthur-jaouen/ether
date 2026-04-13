@@ -12,8 +12,8 @@ Replaces the reviewer subagent's step 1 — reading `CLAUDE.md` and every rule f
 
 ## Sub-steps
 
-- [ ] New `cmd/rules.rs` with `cat` and `list` subcommands
-- [ ] Deterministic ordering (sort rule paths lexicographically)
-- [ ] Handle missing `.claude/rules/` directory gracefully
-- [ ] Tests with a fixture rules tree
-- [ ] Update reviewer.md step 1 to use `ether-forge rules cat`
+- [x] New `cmd/rules.rs` with `cat` and `list` subcommands
+- [x] Deterministic ordering (sort rule paths lexicographically)
+- [x] Handle missing `.claude/rules/` directory gracefully
+- [x] Tests with a fixture rules tree
+- [x] Update reviewer.md step 1 to use `ether-forge rules cat`

@@ -227,8 +227,29 @@ enum Command {
         #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
     },
+    /// Print `CLAUDE.md` and every `.claude/rules/**/*.md`, or just list them.
+    Rules {
+        #[command(subcommand)]
+        action: RulesAction,
+    },
     /// Install the pre-commit git hook that runs `ether-forge check`.
     InstallHooks {
+        /// Repository root (defaults to the current directory).
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum RulesAction {
+    /// Print `CLAUDE.md` followed by every rule file with separators.
+    Cat {
+        /// Repository root (defaults to the current directory).
+        #[arg(long, default_value = ".")]
+        repo_root: PathBuf,
+    },
+    /// Print the resolved file paths, one per line.
+    List {
         /// Repository root (defaults to the current directory).
         #[arg(long, default_value = ".")]
         repo_root: PathBuf,
@@ -307,6 +328,10 @@ fn main() -> anyhow::Result<()> {
         Some(Command::Preflight { task, backlog_dir }) => {
             cmd::preflight::run(&backlog_dir, task.as_deref())
         }
+        Some(Command::Rules { action }) => match action {
+            RulesAction::Cat { repo_root } => cmd::rules::cat(&repo_root),
+            RulesAction::List { repo_root } => cmd::rules::list(&repo_root),
+        },
         Some(Command::InstallHooks { repo_root }) => cmd::install_hooks::run(&repo_root),
     }
 }

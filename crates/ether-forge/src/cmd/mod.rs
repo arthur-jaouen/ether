@@ -16,6 +16,7 @@ pub mod merge;
 pub mod next;
 pub mod preflight;
 pub mod rewrite;
+pub mod rules;
 pub mod search;
 pub mod status;
 pub mod task;

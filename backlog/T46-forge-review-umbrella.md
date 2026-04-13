@@ -5,7 +5,6 @@ size: M
 status: blocked
 depends_on:
   - T42
-  - T44
 ---
 
 Add `ether-forge review [T<n>]` umbrella subcommand that chains `rules-scan` + `validate --diff-only` + `review-artifact` into one call, producing the canonical `target/.ether-forge/review-T<n>.json` from mechanical checks alone.

@@ -8,6 +8,27 @@ argument-hint: [T<n> or empty for next ready]
 
 Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `ether-forge` for every backlog operation — it handles parsing, worktree creation, verification, and dependency cascades.
 
+## Prerequisites
+
+This skill uses deferred tools that are not resident by default. Before step 1, load them in a single `ToolSearch` call so they are available when the workflow needs them — otherwise you will stall mid-flow:
+
+```
+ToolSearch query="select:TodoWrite,AskUserQuestion"
+```
+
+`TodoWrite` tracks the sub-step checklist. `AskUserQuestion` is used at wrap-up time to confirm the merge.
+
+## Session layout: fresh main vs already-on-branch
+
+Two entry states are supported. Identify which one applies before step 8:
+
+| State | How to detect | Branching strategy |
+|-------|---------------|--------------------|
+| **Fresh**, starting from `main` | `git branch --show-current` prints `main` | `preflight` → `EnterWorktree dev-T<n>` (default path, steps 8–10) |
+| **Already on a feature branch** (Claude Code on the web pre-checks out a branch like `claude/implement-…`, or you resumed a session already on `dev-T<n>`) | `git branch --show-current` prints anything other than `main` | **Skip** `preflight` and `EnterWorktree`. Commit directly on the current branch. At wrap-up, merge manually (the `ether-forge merge T<n>` primitive only handles the `dev-T<n>` worktree layout). |
+
+If the current branch is a stale `dev-T<m>` worktree belonging to a different, uncompleted task, stop and warn the user — do not hijack it.
+
 ## Setup
 
 1. `cd /home/arthur/ether`
@@ -23,9 +44,9 @@ Work autonomously on the Ether ECS workspace at `/home/arthur/ether`. Lean on `e
 
 ## Claim + Isolate
 
-8. `ether-forge preflight --task T<n>` — refuses if `main` is dirty, the current branch is behind `main`, or a branch already claims the id. Fix whatever it reports before going further. Skip this step if the session is already inside a worktree (preflight is for the *pre-entry* environment).
-9. Call `EnterWorktree` with `name: "dev-T<n>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so work in place on the current branch.
-10. All further work runs inside the worktree.
+8. **Fresh state only:** `ether-forge preflight --task T<n>` — refuses if `main` is dirty, the current branch is behind `main`, or a branch already claims the id. Fix whatever it reports before going further. Skip if you are already on a feature branch (the check is for the *pre-entry* environment).
+9. **Fresh state only:** call `EnterWorktree` with `name: "dev-T<n>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip if already on a feature branch — `EnterWorktree` refuses to nest, and it is pointless to create a `dev-T<n>` worktree when the harness has already placed you on a working branch.
+10. All further work runs inside whichever branch is now current — the new worktree on the fresh path, or the pre-existing feature branch on the already-on-branch path.
 
 ## Investigate (calibrate to task size)
 
@@ -69,15 +90,27 @@ Review subagent prompt (pass the worktree path and task ID only — the agent re
 
 ## Wrap Up
 
-20. **While still in the worktree**, mark the task done and cascade dependencies:
+20. **While still on the task branch**, mark the task done and cascade dependencies:
     ```bash
     ether-forge done T<n> --commit $(git rev-parse --short HEAD)
     ```
     This moves the file to `backlog/done/`, strips sub-steps, and unblocks dependents. Commit the resulting backlog changes.
 21. Report: branch name, what changed, `ether-forge check` result.
-22. **Pre-merge hygiene:** before exiting the worktree, confirm the session is still inside it. `ExitWorktree` with `action: "keep"` to return to the main checkout, then `git status` on main. If dirty, warn instead of merging.
-23. Use the `AskUserQuestion` tool to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation:
+22. **Pre-merge hygiene:** on the fresh path, `ExitWorktree` with `action: "keep"` to return to main, then `git status` on main — if dirty, warn instead of merging. On the already-on-branch path, there is no worktree to exit; just run `git status` against main after you switch.
+23. Use `AskUserQuestion` to ask whether to merge and delete the branch (options: "Merge and delete" / "Keep branch"). On confirmation, pick the matching primitive for the path:
+
+    **Fresh path (`dev-T<n>` worktree):**
     ```bash
     ether-forge merge T<n>
     ```
-    This collapses the ff-merge / `git worktree remove` / `git branch -d` dance into one primitive: it verifies the worktree is clean, rebases onto main if it advanced, re-runs `check`, applies the reviewer-blocker gate, ff-merges, then removes the worktree directory and deletes the branch. Pass `--keep` to leave both in place, or `--force-review` to override a blocker artifact.
+    Collapses the ff-merge / `git worktree remove` / `git branch -d` dance into one primitive: verifies the worktree is clean, rebases onto main if it advanced, re-runs `check`, applies the reviewer-blocker gate, ff-merges, then removes the worktree directory and deletes the branch. Pass `--keep` to leave both in place, or `--force-review` to override a blocker artifact.
+
+    **Already-on-branch path:** `ether-forge merge T<n>` does not understand non-`dev-T<n>` branches, so drive git directly:
+    ```bash
+    git checkout main
+    git pull --ff-only origin main
+    git merge --ff-only <branch>
+    git push origin main
+    git branch -d <branch>
+    ```
+    Run `ether-forge check` once after the ff-merge to confirm main is still green. The reviewer-blocker gate is already enforced at commit time by `ether-forge commit`, so the extra gate that `ether-forge merge` runs is not load-bearing here. Remote branch deletion is optional and may be restricted by the harness.

@@ -38,6 +38,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": ".claude/hooks/bootstrap.sh"
+          },
+          {
+            "type": "command",
             "command": ".claude/hooks/backlog-status.sh"
           }
         ]

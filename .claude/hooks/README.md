@@ -7,6 +7,7 @@ Shell scripts invoked by the Claude Code harness per the matchers in
 |------|-------|---------|
 | `guard-bash.sh` | PreToolUse (Bash) | Block dangerous shell invocations |
 | `fmt-rs.sh` | PostToolUse (Edit\|Write) | Auto-format touched `.rs` files |
+| `bootstrap.sh` | SessionStart | Build+link `ether-forge`, install `cargo-nextest` prebuilt binary if absent — idempotent, quiet on the happy path |
 | `backlog-status.sh` | SessionStart | Inject compact backlog summary into context |
 | `validate.sh` | SessionEnd | Backlog integrity check (unique IDs, depends_on refs) |
 

@@ -87,10 +87,51 @@ ensure_nextest() {
     log "installed cargo-nextest $version"
 }
 
-# ---- 3. report ----------------------------------------------------------
+# ---- 3. sanitize branch state ------------------------------------------
+#
+# Claude Code on the web pre-checks out a `claude/<slug>` branch per
+# session even when the task at hand has nothing to do with that slug.
+# If the branch has zero commits ahead of main and a clean worktree, it
+# is effectively scaffolding — switch back to main so `/dev` can take
+# its own branching decision. If there are commits ahead or the worktree
+# is dirty, leave it alone: that is work the user may want to resume.
+
+ensure_branch_state() {
+    local current
+    current=$(git -C "$repo_root" branch --show-current 2>/dev/null || true)
+    [ -z "$current" ] && return 0
+    [ "$current" = "main" ] && return 0
+
+    # Only auto-switch harness-generated `claude/*` branches. Any other
+    # non-main branch is intentional — a resumed `dev-T<n>` or a branch
+    # the user created manually.
+    case "$current" in
+        claude/*) ;;
+        *) return 0 ;;
+    esac
+
+    local ahead
+    ahead=$(git -C "$repo_root" rev-list --count "origin/main..HEAD" 2>/dev/null || echo 0)
+    if [ "$ahead" != "0" ]; then
+        log "leaving branch '$current' ($ahead commit(s) ahead of main)"
+        return 0
+    fi
+
+    if ! git -C "$repo_root" diff --quiet || ! git -C "$repo_root" diff --cached --quiet; then
+        log "leaving branch '$current' (dirty worktree)"
+        return 0
+    fi
+
+    log "switching empty scaffolding branch '$current' -> main"
+    git -C "$repo_root" checkout -q main
+    git -C "$repo_root" branch -D "$current" >/dev/null 2>&1 || true
+}
+
+# ---- 4. report ----------------------------------------------------------
 
 ensure_ether_forge || true
 ensure_nextest || true
+ensure_branch_state || true
 
 if command -v ether-forge >/dev/null 2>&1 && command -v cargo-nextest >/dev/null 2>&1; then
     log "ready: ether-forge $(ether-forge --version 2>/dev/null | awk '{print $2}'), $(cargo nextest --version 2>/dev/null | head -1 | awk '{print $2}')"

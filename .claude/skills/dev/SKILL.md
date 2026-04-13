@@ -63,6 +63,12 @@ If the current branch is a stale `dev-T<m>` worktree belonging to a different, u
 14. Before writing test helpers, search for existing ones with the Grep tool (pattern `fn (ent|spawn_test|test_world)`, glob `crates/**/*.rs`, or type `rust`). Reuse — do NOT duplicate.
 15. Write tests for any new or changed functionality. For each new test, verify: "Would this pass if the function returned a constant?" If yes, needs different inputs/assertions.
 16. **Scaffolding dead code:** if clippy flags `dead_code` on items a *later* backlog task will consume, add `#[allow(dead_code)]` with a `// FIXME(T<n>):` comment naming the unblocking task. Never silence clippy without a FIXME.
+17. **Smoke test before self-review.** If the task adds or changes a user-facing surface — a new `ether-forge` subcommand, a new CLI flag, a new agent/hook entry point, a file format — run it end-to-end against a realistic input *before* moving on. Unit tests verify code correctness in isolation; the smoke test verifies that the wiring, clap argv, error messages, and file-system side effects actually behave as documented. Typical shapes:
+    - New subcommand: invoke it in a `mktemp -d` with happy-path args, one malformed-input case, and (if relevant) one stdin case. Eyeball the output.
+    - New hook: source it from a scratch shell and confirm idempotence on a clean state.
+    - New file format: run the producer, `cat` the result, and feed it back into the consumer.
+
+    Catching wiring bugs here is much cheaper than discovering them after the reviewer agent has already started.
 
 ## Self-Review + Verify (parallel)
 

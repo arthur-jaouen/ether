@@ -321,4 +321,44 @@ mod tests {
         let err = parse_from_json("not json").unwrap_err();
         assert!(err.to_string().contains("parsing review artifact JSON"));
     }
+
+    /// Contract lint: every `--blocker "..."` / `--nit "..."` invocation
+    /// shown in `.claude/agents/reviewer.md` must round-trip through
+    /// `parse_entry` unchanged. The reviewer agent copies these strings as
+    /// templates; if the CLI parser tightens and the doc isn't updated, a
+    /// real session silently writes a malformed artifact and the commit
+    /// gate breaks. Failing here surfaces the drift at build time.
+    #[test]
+    fn reviewer_md_example_invocations_round_trip() {
+        const DOC: &str = include_str!("../../../../.claude/agents/reviewer.md");
+        let mut count = 0;
+        for line in DOC.lines() {
+            for flag in ["--blocker", "--nit"] {
+                let Some((_, after)) = line.split_once(flag) else {
+                    continue;
+                };
+                // Only match the quoted `file:line:message` form. Prose
+                // mentions in reviewer.md use backticks (`--blocker`) and
+                // have no quoted argument, so they are skipped.
+                let Some(rest) = after.trim_start().strip_prefix('"') else {
+                    continue;
+                };
+                let Some(end) = rest.find('"') else {
+                    continue;
+                };
+                let spec = &rest[..end];
+                let entry = parse_entry(spec).unwrap_or_else(|e| {
+                    panic!("reviewer.md example `{flag} \"{spec}\"` failed to parse: {e:#}")
+                });
+                assert!(!entry.file.is_empty());
+                assert!(!entry.message.is_empty());
+                count += 1;
+            }
+        }
+        assert!(
+            count >= 2,
+            "expected at least two quoted example invocations in reviewer.md; found {count} \
+             (the example block may have been removed — restore it or relax this lint)"
+        );
+    }
 }

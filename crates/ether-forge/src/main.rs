@@ -38,10 +38,18 @@ enum Command {
     /// Run the workspace verification suite (test, clippy, fmt).
     Check,
     /// Validate backlog integrity (ids, depends_on, cycles, filenames).
+    ///
+    /// With `--diff-only`, skips the backlog walk and runs reviewer-subset
+    /// source scans (unsafe/SAFETY, HashMap/HashSet, TODO/FIXME) over
+    /// `git diff main` instead. Pass a task id to scope to that worktree.
     Validate {
         /// Backlog directory (defaults to `./backlog`).
         #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
+        /// Skip backlog checks; run source scans on `git diff main`.
+        /// Optionally takes a task id whose worktree hosts the diff.
+        #[arg(long, num_args = 0..=1, value_name = "TASK")]
+        diff_only: Option<Option<String>>,
     },
     /// List backlog tasks sorted by priority then id.
     List {
@@ -287,7 +295,13 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Some(Command::Check) => cmd::check::run(),
-        Some(Command::Validate { backlog_dir }) => cmd::validate::run(&backlog_dir),
+        Some(Command::Validate {
+            backlog_dir,
+            diff_only,
+        }) => match diff_only {
+            Some(task) => cmd::validate::run_diff_only(&backlog_dir, task.as_deref()),
+            None => cmd::validate::run(&backlog_dir),
+        },
         Some(Command::List {
             status,
             backlog_dir,

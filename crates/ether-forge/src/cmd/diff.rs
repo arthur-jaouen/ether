@@ -19,19 +19,7 @@ const MAX_DIFF_BYTES: usize = 200_000;
 
 /// Run the diff subcommand against the real `git` binary.
 pub fn run(backlog_dir: &Path, id: Option<&str>) -> Result<()> {
-    let work_dir = match id {
-        Some(id) => {
-            let task = find_task(backlog_dir, id)?;
-            let rel = PathBuf::from("worktrees").join(format!("{}-{}", id, slugify(&task.title)));
-            let abs = repo::repo_root()?.join(&rel);
-            if !abs.exists() {
-                bail!("worktree path does not exist: {}", abs.display());
-            }
-            abs
-        }
-        None => repo::repo_root()?,
-    };
-
+    let work_dir = resolve_work_dir(backlog_dir, id)?;
     let raw = git_diff_main(&work_dir)?;
     let filtered = filter_lockfiles(&raw);
     let capped = truncate(filtered, MAX_DIFF_BYTES);
@@ -42,8 +30,28 @@ pub fn run(backlog_dir: &Path, id: Option<&str>) -> Result<()> {
     Ok(())
 }
 
+/// Resolve the working directory a `git diff main` should run in.
+///
+/// `None` → repo root. `Some(id)` → the task's worktree under
+/// `worktrees/<id>-<slug>/`. Shared with `validate --diff-only` so both
+/// commands scope to the same tree.
+pub(crate) fn resolve_work_dir(backlog_dir: &Path, id: Option<&str>) -> Result<PathBuf> {
+    match id {
+        Some(id) => {
+            let task = find_task(backlog_dir, id)?;
+            let rel = PathBuf::from("worktrees").join(format!("{}-{}", id, slugify(&task.title)));
+            let abs = repo::repo_root()?.join(&rel);
+            if !abs.exists() {
+                bail!("worktree path does not exist: {}", abs.display());
+            }
+            Ok(abs)
+        }
+        None => repo::repo_root(),
+    }
+}
+
 /// Capture `git diff main` from `dir` as a UTF-8 string.
-fn git_diff_main(dir: &Path) -> Result<String> {
+pub(crate) fn git_diff_main(dir: &Path) -> Result<String> {
     let output = Command::new("git")
         .args(["diff", "main"])
         .current_dir(dir)

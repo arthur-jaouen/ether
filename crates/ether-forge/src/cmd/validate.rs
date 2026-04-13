@@ -1,10 +1,20 @@
 //! `ether-forge validate` — integrity lint across the backlog.
+//!
+//! Two modes:
+//!
+//! * **Default**: walks `backlog/` + `backlog/done/` and reports duplicate
+//!   ids, malformed filenames, bad `depends_on` refs, cycles, etc.
+//! * **`--diff-only [T<n>]`**: skips backlog work entirely and runs the
+//!   reviewer-subset source scans from [`crate::cmd::diff_scan`] over
+//!   `git diff main`. The optional task id points at the task's worktree
+//!   so the same checks can run inside an in-flight skill branch.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+use crate::cmd::{diff, diff_scan};
 use crate::task::{Status, Task};
 
 /// Run validation over `backlog_dir` (active) and `backlog_dir/done`.
@@ -20,6 +30,60 @@ pub fn run(backlog_dir: &Path) -> Result<()> {
         eprintln!("{}", report.render());
         anyhow::bail!("{} validation error(s)", report.errors.len());
     }
+}
+
+/// Run the reviewer-subset source scans over `git diff main`.
+///
+/// When `task_id` is `Some`, the diff is captured from the task's worktree
+/// under `worktrees/<id>-<slug>/`; otherwise from the repo root. Emits
+/// findings grouped by check category in deterministic order.
+pub fn run_diff_only(backlog_dir: &Path, task_id: Option<&str>) -> Result<()> {
+    let findings = scan_diff_only(backlog_dir, task_id)?;
+    if findings.is_empty() {
+        println!("OK");
+        return Ok(());
+    }
+    eprintln!("{}", render_diff_findings(&findings));
+    anyhow::bail!("{} diff-scan finding(s)", findings.len());
+}
+
+/// Capture the diff for the target work dir and run every scan over it.
+///
+/// Extracted from [`run_diff_only`] so tests can assert on the structured
+/// findings list without going through stdout/stderr.
+pub fn scan_diff_only(
+    backlog_dir: &Path,
+    task_id: Option<&str>,
+) -> Result<Vec<diff_scan::ScanFinding>> {
+    let work_dir = diff::resolve_work_dir(backlog_dir, task_id)?;
+    let raw = diff::git_diff_main(&work_dir)?;
+    let files = diff_scan::parse_diff(&raw);
+    let mut out = Vec::new();
+    for file in &files {
+        out.extend(diff_scan::scan_file(file));
+    }
+    // Deterministic ordering: (check, file, lineno) — matches the category
+    // grouping that `render_diff_findings` prints.
+    out.sort_by(|a, b| (a.check, &a.file, a.lineno).cmp(&(b.check, &b.file, b.lineno)));
+    Ok(out)
+}
+
+/// Render diff-scan findings grouped by check category, one bullet per
+/// finding, in deterministic order. Shape mirrors [`Report::render`] so
+/// downstream consumers don't need to distinguish the two modes visually.
+pub fn render_diff_findings(findings: &[diff_scan::ScanFinding]) -> String {
+    let mut grouped: BTreeMap<diff_scan::Check, Vec<&diff_scan::ScanFinding>> = BTreeMap::new();
+    for f in findings {
+        grouped.entry(f.check).or_default().push(f);
+    }
+    let mut out = String::new();
+    for (check, entries) in grouped {
+        out.push_str(&format!("{}:\n", check.label()));
+        for f in entries {
+            out.push_str(&format!("  - {}:{} — {}\n", f.file, f.lineno, f.message));
+        }
+    }
+    out
 }
 
 /// A single validation failure, grouped by category for reporting.
@@ -360,8 +424,50 @@ fn check_cycles(active: &[(Task, PathBuf)], report: &mut Report) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cmd::diff_scan::{Check, ScanFinding};
     use std::fs;
     use tempfile::TempDir;
+
+    #[test]
+    fn render_diff_findings_groups_by_check_in_stable_order() {
+        let findings = vec![
+            ScanFinding {
+                check: Check::TodoMarker,
+                file: "a.rs".into(),
+                lineno: 5,
+                message: "new `TODO` marker in added line".into(),
+            },
+            ScanFinding {
+                check: Check::UnsafeWithoutSafety,
+                file: "b.rs".into(),
+                lineno: 10,
+                message: "new `unsafe` without a `// SAFETY:` comment on the preceding lines"
+                    .into(),
+            },
+            ScanFinding {
+                check: Check::NonDeterministicIter,
+                file: "c.rs".into(),
+                lineno: 3,
+                message: "new `HashMap` reference".into(),
+            },
+        ];
+        let out = render_diff_findings(&findings);
+        // Enum ordering: Unsafe < NonDeterministicIter < TodoMarker.
+        let unsafe_idx = out.find("unsafe without SAFETY").unwrap();
+        let iter_idx = out.find("non-deterministic HashMap").unwrap();
+        let todo_idx = out.find("TODO/FIXME marker").unwrap();
+        assert!(unsafe_idx < iter_idx);
+        assert!(iter_idx < todo_idx);
+        // Each bullet carries `file:lineno — message`.
+        assert!(out.contains("  - a.rs:5 — new `TODO`"));
+        assert!(out.contains("  - b.rs:10 — new `unsafe`"));
+        assert!(out.contains("  - c.rs:3 — new `HashMap`"));
+    }
+
+    #[test]
+    fn render_diff_findings_empty_is_empty_string() {
+        assert_eq!(render_diff_findings(&[]), "");
+    }
 
     fn write(dir: &Path, name: &str, body: &str) {
         fs::write(dir.join(name), body).unwrap();

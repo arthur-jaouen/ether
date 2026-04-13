@@ -40,6 +40,8 @@ fn setup_repo_with_worktree() -> (tempfile::TempDir, PathBuf, PathBuf) {
     run_git(&repo, &["init", "-q", "-b", "main"]);
     run_git(&repo, &["config", "user.email", "t@example.com"]);
     run_git(&repo, &["config", "user.name", "t"]);
+    run_git(&repo, &["config", "commit.gpgsign", "false"]);
+    run_git(&repo, &["config", "tag.gpgsign", "false"]);
 
     let backlog = repo.join("backlog");
     fs::create_dir_all(&backlog).unwrap();

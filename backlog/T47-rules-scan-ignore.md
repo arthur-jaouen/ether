@@ -3,7 +3,7 @@ id: T47
 title: rules-scan supports ignore markers and exclude_paths
 size: S
 status: ready
-priority: 8
+priority: 4
 ---
 
 Add a mechanism for `ether-forge rules-scan` to suppress false positives on known meta-mentions, so it can run in CI without flagging the checker's own documentation and test fixtures.

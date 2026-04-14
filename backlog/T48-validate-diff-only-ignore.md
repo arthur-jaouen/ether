@@ -5,7 +5,7 @@ size: S
 status: blocked
 depends_on:
   - T47
-priority: 9
+priority: 5
 ---
 
 Make `ether-forge validate --diff-only` respect the same suppression mechanism as `rules-scan` (T47), so the two mechanical checkers behave consistently. Without this, a self-referential line flagged by one tool but not the other just shifts the noise around.

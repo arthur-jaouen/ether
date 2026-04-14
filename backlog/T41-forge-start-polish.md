@@ -3,6 +3,7 @@ id: T41
 title: ether-forge start — polish and skill wiring
 size: L
 status: ready
+priority: 1
 ---
 
 Follow-up to T40. Harden the `start` subcommand's edge cases, add a

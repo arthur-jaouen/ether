@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
 # backlog-status.sh — compact backlog summary for SessionStart context injection.
-# Temporary — swap to `ether-forge status` once T6 lands.
 #
-# Parses YAML frontmatter in backlog/*.md to count tasks by status and
-# identify the next ready task (lowest priority, then lowest T<n> ID).
-# Output is ≤10 lines, plain text, suitable for injection into a prompt.
+# Thin wrapper around `ether-forge status` (the canonical implementation).
+# Falls back to an awk-based parser only if the binary is not yet built —
+# this can happen on the very first session before the bootstrap hook has
+# compiled the workspace. Both code paths must produce byte-identical
+# output so /dev's "trust the hook over forge" rule never fires on a real
+# divergence.
 
 set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 backlog_dir="$repo_root/backlog"
 
+if command -v ether-forge >/dev/null 2>&1; then
+    exec ether-forge status --backlog-dir "$backlog_dir"
+fi
+
+# ---------- Fallback: cold-start path, no ether-forge binary yet ----------
+# Mirrors the rendering in crates/ether-forge/src/cmd/status.rs::render so
+# that swapping between the two paths is invisible to downstream consumers.
+
 if [ ! -d "$backlog_dir" ]; then
-    echo "no tasks"
+    echo "backlog: 0 tasks — 0 ready, 0 blocked, 0 draft, 0 done"
+    echo "next: (none)"
     exit 0
 fi
 
@@ -20,24 +31,18 @@ shopt -s nullglob
 files=("$backlog_dir"/T*.md)
 shopt -u nullglob
 
-if [ ${#files[@]} -eq 0 ]; then
-    echo "no tasks"
-    exit 0
-fi
-
 ready=0
 blocked=0
 draft=0
 done_=0
 
-# best_ready: "<priority> <id_num> <title>" for lowest (priority, id)
+# best_ready: lowest (priority, numeric_id) where missing priority sorts last.
 best_pri=""
 best_id=""
 best_title=""
 best_tn=""
 
 for f in "${files[@]}"; do
-    # Extract frontmatter (between first two --- lines)
     fm=$(awk '/^---$/{n++; next} n==1{print} n>=2{exit}' "$f")
     status=$(printf '%s\n' "$fm" | awk -F': *' '/^status:/ {print $2; exit}')
     id=$(printf '%s\n' "$fm" | awk -F': *' '/^id:/ {print $2; exit}')
@@ -52,8 +57,8 @@ for f in "${files[@]}"; do
     esac
 
     if [ "$status" = "ready" ]; then
-        # Normalize missing priority to a large number so explicit priorities win
-        pri="${priority:-9999}"
+        # Match Task::pick_key: missing priority sorts as u32::MAX.
+        pri="${priority:-4294967295}"
         id_num="${id#T}"
         if [ -z "$best_pri" ] \
             || [ "$pri" -lt "$best_pri" ] \
@@ -66,15 +71,11 @@ for f in "${files[@]}"; do
     fi
 done
 
-total=$((ready + blocked + draft))
-if [ "$total" -eq 0 ]; then
-    echo "no tasks"
-    exit 0
-fi
-
-echo "backlog: $ready ready, $blocked blocked, $draft draft"
+total=${#files[@]}
+echo "backlog: $total tasks — $ready ready, $blocked blocked, $draft draft, $done_ done"
 if [ -n "$best_tn" ]; then
-    echo "next: $best_tn — $best_title"
+    # Two-space separator matches `next` / `status` rendering in ether-forge.
+    echo "next: $best_tn  $best_title"
 else
-    echo "next: none ready (run /groom)"
+    echo "next: (none)"
 fi

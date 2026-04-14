@@ -3,7 +3,7 @@ id: T40
 title: ether-forge start subcommand — core
 size: M
 status: ready
-priority: 7
+priority: 4
 ---
 
 Entry-side mirror of T38 (`merge`). Ship a working `ether-forge start T<n>` that collapses the `/dev` kickoff dance (`get`, `check`, `preflight`, worktree add, fetch+rebase) into one primitive. This task covers the happy path only; edge-case flags and skill wiring land in the follow-up.

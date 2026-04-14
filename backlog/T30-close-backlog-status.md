@@ -10,6 +10,6 @@ Wire `ether-forge status` into the `/close` skill so every session wrap-up ends 
 
 ## Sub-steps
 
-- [ ] Edit `.claude/skills/close/SKILL.md`: add `ether-forge status` to the final report step.
-- [ ] Include output verbatim in the session summary (counts by status + next ready task).
-- [ ] Manual smoke test: run `/close` at end of a session and confirm the status block appears.
+- [x] Edit `.claude/skills/close/SKILL.md`: add `ether-forge status` to the final report step.
+- [x] Include output verbatim in the session summary (counts by status + next ready task).
+- [x] Manual smoke test: run `/close` at end of a session and confirm the status block appears.

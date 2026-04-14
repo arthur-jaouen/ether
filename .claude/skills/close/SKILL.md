@@ -27,7 +27,7 @@ Commit outstanding changes and report final state.
       ```
    d. For any non-main branch with commits ahead of `main` (dev-T<n>, groom-*, roadmap-*), use `AskUserQuestion` to ask about merging (options: "Merge and delete" / "Keep branch"). Dev worktrees mid-task (unchecked sub-steps) should be flagged as "Keep", not offered for merge.
 
-4. **Report final state.** Run `ether-forge status` for the backlog snapshot — don't hand-count.
+4. **Report final state.** Run `ether-forge status` and paste its two lines verbatim under **Backlog snapshot** — don't hand-count or paraphrase. Example shape:
    ```
    ## Session closed
 
@@ -38,7 +38,8 @@ Commit outstanding changes and report final state.
    - <path> [<branch>] — clean | N uncommitted changes
 
    ### Backlog snapshot
-   <ether-forge status output>
+   backlog: 9 tasks — 6 ready, 3 blocked, 0 draft, 0 done
+   next: T<n>  <title of next ready task>
    ```
 
 ## Rules

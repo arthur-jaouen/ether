@@ -18,17 +18,6 @@ ToolSearch query="select:TodoWrite,AskUserQuestion"
 
 `TodoWrite` tracks the sub-step checklist. `AskUserQuestion` is used at wrap-up time to confirm the merge.
 
-## Session layout: fresh main vs already-on-branch
-
-Two entry states are supported. Identify which one applies before step 8:
-
-| State | How to detect | Branching strategy |
-|-------|---------------|--------------------|
-| **Fresh**, starting from `main` | `git branch --show-current` prints `main` | `preflight` → `EnterWorktree dev-T<n>` (default path, steps 8–10) |
-| **Already on a feature branch** (Claude Code on the web pre-checks out a branch like `claude/implement-…`, or you resumed a session already on `dev-T<n>`) | `git branch --show-current` prints anything other than `main` | **Skip** `preflight` and `EnterWorktree`. Commit directly on the current branch. At wrap-up, merge manually (the `ether-forge merge T<n>` primitive only handles the `dev-T<n>` worktree layout). |
-
-If the current branch is a stale `dev-T<m>` worktree belonging to a different, uncompleted task, stop and warn the user — do not hijack it.
-
 ## Setup
 
 1. `cd /home/arthur/ether`
@@ -45,9 +34,13 @@ If the current branch is a stale `dev-T<m>` worktree belonging to a different, u
 
 ## Claim + Isolate
 
-9. **Fresh state only:** `ether-forge preflight --task T<n>` — refuses if `main` is dirty, the current branch is behind `main`, or a branch already claims the id. Fix whatever it reports before going further. Skip if you are already on a feature branch (the check is for the *pre-entry* environment).
-10. **Fresh state only:** call `EnterWorktree` with `name: "dev-T<n>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip if already on a feature branch — `EnterWorktree` refuses to nest, and it is pointless to create a `dev-T<n>` worktree when the harness has already placed you on a working branch.
-11. All further work runs inside whichever branch is now current — the new worktree on the fresh path, or the pre-existing feature branch on the already-on-branch path.
+9. `ether-forge start T<n>` — one primitive that runs `preflight --task T<n>`, runs `check`, creates the `.claude/worktrees/dev-T<n>` linked worktree on branch `worktree-dev-T<n>`, and rebases it onto `origin/main` if main advanced. If the primary worktree is already on a non-main feature branch (Claude Code on the Web scaffolding, resumed `/dev` session), it skips worktree creation and reuses the existing branch instead. Refuses cleanly when the current branch claims a different task id.
+10. **Conditional `EnterWorktree`.** The final stdout line from `start` is a stable sentinel:
+    - `start: mode=created path=<abs> branch=<name>` — a new worktree was created. Follow up with `EnterWorktree` using `name: "dev-T<n>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree.
+    - `start: mode=in-place branch=<name>` — the current branch was reused in place. **Do not** call `EnterWorktree` (it refuses to nest, and there is nothing new to enter).
+
+    Grep the sentinel line for `mode=created` to decide. Every other stdout line is human-readable and may change.
+11. All further work runs inside whichever branch is now current — the new worktree on the created path, or the pre-existing feature branch on the in-place path.
 
 ## Investigate (calibrate to task size)
 

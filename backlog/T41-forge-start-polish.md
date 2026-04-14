@@ -69,11 +69,11 @@ format can't drift.
 
 ## Sub-steps
 
-- [ ] `--branch <name>` mode in `crates/ether-forge/src/cmd/start.rs`: factor
+- [x] `--branch <name>` mode in `crates/ether-forge/src/cmd/start.rs`: factor
   the core flow so it accepts an already-resolved `(worktree_dir, branch_name,
   task_id: Option<&str>)` triple, then have the T<n> path and the `--branch`
   path both call it. Preflight runs without `--task` in branch mode.
-- [ ] **In-place fallback**: before attempting `git worktree add`, inspect
+- [x] **In-place fallback**: before attempting `git worktree add`, inspect
   `git worktree list --porcelain`. If the primary entry's branch is a
   non-main feature branch, short-circuit to the in-place path: run preflight
   (no claim check), run `check`, emit the `mode=in-place` sentinel (see
@@ -82,42 +82,42 @@ format can't drift.
   third caller). Refuses with a clear error if the current branch name
   conflicts with the requested task id or `--branch` value (e.g. `start T40`
   on `dev-T17` should not silently succeed).
-- [ ] **Status-line sentinel**: emit exactly one final stdout line per
+- [x] **Status-line sentinel**: emit exactly one final stdout line per
   invocation in the stable machine-readable format
   `start: mode=created path=<abs> branch=<name>` (happy path) or
   `start: mode=in-place branch=<name>` (fallback). Factor into a tiny helper
   so both paths call the same formatter; unit-test both emission shapes by
   capturing stdout. This is the contract the three skills rely on for
   conditional `EnterWorktree` dispatch.
-- [ ] `--keep-existing` flag: if the target worktree dir already exists on
+- [x] `--keep-existing` flag: if the target worktree dir already exists on
   disk, reuse it (`git worktree add` becomes a no-op verification) instead of
   erroring. Applies to both modes — handles the rerun-after-interruption case.
-- [ ] Regression test: `main` advanced after the worktree's branch was first
+- [x] Regression test: `main` advanced after the worktree's branch was first
   created — `start` fetches origin/main and rebases the worktree cleanly.
   Requires a local bare remote in the fixture since the current T40 fixtures
   have no `origin`.
-- [ ] Regression test: pre-existing worktree dir with `--keep-existing` — must
+- [x] Regression test: pre-existing worktree dir with `--keep-existing` — must
   reuse, not error. Without the flag, must still error clearly.
-- [ ] Regression test: `ether-forge start --branch groom-2026-04-14` happy
+- [x] Regression test: `ether-forge start --branch groom-2026-04-14` happy
   path against a throwaway repo — asserts worktree dir, branch, and HEAD
   match main.
-- [ ] Regression test (in-place fallback, task mode): set up a repo with the
+- [x] Regression test (in-place fallback, task mode): set up a repo with the
   primary worktree checked out on `claude/scaffolding-xyz`, run `ether-forge
   start T<n>`, assert the worktree dir was NOT created, the branch stays put,
   and stdout contains the "already on" notice.
-- [ ] Regression test (in-place fallback, branch mode): same fixture, run
+- [x] Regression test (in-place fallback, branch mode): same fixture, run
   `ether-forge start --branch groom-2026-04-14` from the scaffolding branch,
   assert the same skip-and-return behavior.
-- [ ] Regression test (conflict): on branch `dev-T17`, run `ether-forge start
+- [x] Regression test (conflict): on branch `dev-T17`, run `ether-forge start
   T40` — must refuse with a clear "current branch does not claim T40" error
   rather than silently no-opping.
-- [ ] Regression test (sentinel format): unit-test the status-line helper
+- [x] Regression test (sentinel format): unit-test the status-line helper
   directly for both shapes (`mode=created path=… branch=…` and
   `mode=in-place branch=…`) AND assert the integration-test stdout from at
   least one happy-path case and one in-place case ends with the expected
   sentinel. The format is a load-bearing contract for the three skills, so
   breaking it must fail tests.
-- [ ] Update `.claude/skills/dev/SKILL.md` startup section: replace the
+- [x] Update `.claude/skills/dev/SKILL.md` startup section: replace the
   `get` + `check` + `preflight` + `EnterWorktree` + fetch/rebase sequence
   (steps 8–10 in the "Fresh" state) with a single `ether-forge start T<n>`
   call followed by a conditional `EnterWorktree dev-T<n>` that fires only
@@ -126,17 +126,17 @@ format can't drift.
   skill now has one call path and the binary's sentinel decides. Also
   delete the stale "Skip if already on a feature branch" prose in the
   preflight guidance.
-- [ ] Update `.claude/skills/groom/SKILL.md` kickoff: replace step 10's
+- [x] Update `.claude/skills/groom/SKILL.md` kickoff: replace step 10's
   `ether-forge preflight` with
   `ether-forge start --branch groom-$(date +%Y-%m-%d)`, and rewrite step 11
   so `EnterWorktree groom-<date>` is called only when the `start` output
   contained `mode=created`. Delete the "skip if already inside a worktree"
   prose in both steps — the sentinel absorbs that decision. Keep the rest
   of the session shape (apply auto-fixes, validate, commit) untouched.
-- [ ] Update `.claude/skills/roadmap/SKILL.md` kickoff: identical rewrite
+- [x] Update `.claude/skills/roadmap/SKILL.md` kickoff: identical rewrite
   with `ether-forge start --branch roadmap-$(date +%Y-%m-%d)` and a
   conditional `EnterWorktree roadmap-<date>` in step 11.
-- [ ] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings`
+- [x] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings`
   stay green.
 
 ## Splittability note

@@ -263,14 +263,30 @@ enum Command {
         #[arg(long, default_value = "target")]
         target_root: PathBuf,
     },
-    /// Collapse the `/dev` kickoff dance into one primitive: load the task,
-    /// assert it is `ready`, run `check` + `preflight`, create the skill
-    /// worktree at `.claude/worktrees/dev-T<n>` on branch
-    /// `worktree-dev-T<n>`, then fetch `main` and rebase if the worktree is
-    /// behind. Entry-side mirror of `merge`.
+    /// Collapse the `/dev`, `/groom`, and `/roadmap` kickoff dances into one
+    /// primitive. Task mode (`start T<n>`): loads the task, asserts it is
+    /// `ready`, runs `check` + `preflight`, creates the skill worktree at
+    /// `.claude/worktrees/dev-T<n>` on branch `worktree-dev-T<n>`, fetches
+    /// `main` and rebases if behind. Branch mode (`start --branch <name>`):
+    /// skips the backlog lookup and creates `.claude/worktrees/<name>` on
+    /// branch `<name>`. Both modes honour the in-place fallback when the
+    /// primary worktree is already on a non-main feature branch. Entry-side
+    /// mirror of `merge`.
     Start {
-        /// Task id (e.g. `T40`). Must be in `status: ready`.
-        id: String,
+        /// Task id (e.g. `T40`). Must be in `status: ready`. Mutually
+        /// exclusive with `--branch`.
+        #[arg(required_unless_present = "branch", conflicts_with = "branch")]
+        id: Option<String>,
+        /// Explicit branch name for a skill kickoff that has no task id
+        /// (e.g. `groom-2026-04-14`, `roadmap-2026-04-14`). Mutually
+        /// exclusive with the positional task id.
+        #[arg(long, conflicts_with = "id")]
+        branch: Option<String>,
+        /// Reuse an existing worktree dir instead of erroring. Handles the
+        /// rerun-after-interruption case where `.claude/worktrees/<name>`
+        /// was left behind by a previous session.
+        #[arg(long)]
+        keep_existing: bool,
         /// Backlog directory (defaults to `./backlog`).
         #[arg(long, default_value_os_t = default_backlog_dir())]
         backlog_dir: PathBuf,
@@ -402,7 +418,17 @@ fn main() -> anyhow::Result<()> {
             from_stdin,
             target_root,
         }) => cmd::review_artifact::run(&target_root, &task, &blockers, &nits, from_stdin),
-        Some(Command::Start { id, backlog_dir }) => cmd::start::run(&backlog_dir, &id),
+        Some(Command::Start {
+            id,
+            branch,
+            keep_existing,
+            backlog_dir,
+        }) => cmd::start::run(
+            &backlog_dir,
+            id.as_deref(),
+            branch.as_deref(),
+            keep_existing,
+        ),
         Some(Command::Preflight { task, backlog_dir }) => {
             cmd::preflight::run(&backlog_dir, task.as_deref())
         }

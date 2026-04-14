@@ -56,8 +56,8 @@ All commands run from `/home/arthur/ether`.
 
 ## Phase 5 — Apply
 
-10. `ether-forge preflight` — refuses if `main` is dirty or the current branch is behind `main`'s HEAD. Fix whatever it reports before entering the worktree. Skip if already inside a worktree.
-11. Call `EnterWorktree` with `name: "groom-YYYY-MM-DD"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so work in place.
+10. `ether-forge start --branch groom-$(date +%Y-%m-%d)` — one primitive that runs `preflight`, runs `check`, and either creates `.claude/worktrees/groom-<date>` on a fresh branch or reuses the current branch in place when the primary worktree is already on a non-main feature branch. The final stdout line is a stable sentinel (`start: mode=created …` or `start: mode=in-place …`).
+11. **Conditional `EnterWorktree`.** If the `start` output ended with `mode=created`, follow up with `EnterWorktree` using `name: "groom-<date>"` so every tool (Glob/Grep/Read/Edit/Bash) resolves against the isolated worktree. If it ended with `mode=in-place`, skip `EnterWorktree` — the session is already on a working branch.
 12. Apply auto-fixes via `ether-forge groom --apply`. Apply proposed changes (new task files, edits, ROADMAP.md updates) directly in the worktree.
 13. `ether-forge validate` to confirm integrity before committing.
 14. Commit with a descriptive message.

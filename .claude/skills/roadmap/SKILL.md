@@ -33,8 +33,8 @@ Plan what's next for an Ether area. **Conversation with structured input** — a
 
 When conversation converges:
 
-10. `ether-forge preflight` — refuses if `main` is dirty or the current branch is behind `main`'s HEAD. Fix whatever it reports before entering the worktree. Skip if already inside a worktree.
-11. Call `EnterWorktree` with `name: "roadmap-<topic>"` so every tool (including `Edit` on `ROADMAP.md`) resolves against the isolated worktree. Skip this step if the session is already inside a worktree — `EnterWorktree` refuses to nest, so edit in place.
+10. `ether-forge start --branch roadmap-$(date +%Y-%m-%d)` — one primitive that runs `preflight`, runs `check`, and either creates `.claude/worktrees/roadmap-<date>` on a fresh branch or reuses the current branch in place when the primary worktree is already on a non-main feature branch. The final stdout line is a stable sentinel (`start: mode=created …` or `start: mode=in-place …`).
+11. **Conditional `EnterWorktree`.** If the `start` output ended with `mode=created`, follow up with `EnterWorktree` using `name: "roadmap-<date>"` so every tool (including `Edit` on `ROADMAP.md`) resolves against the isolated worktree. If it ended with `mode=in-place`, skip `EnterWorktree` — the session is already on a working branch.
 12. Ask: "Want me to write this into ROADMAP.md?"
 13. Update `ROADMAP.md` — replace/update the relevant section with concrete numbers.
 14. Tell user: "Run `/groom <section>` to generate tasks from this."

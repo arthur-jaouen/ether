@@ -114,12 +114,4 @@ If the current branch is a stale `dev-T<m>` worktree belonging to a different, u
     ```
     Collapses the ff-merge / `git worktree remove` / `git branch -d` dance into one primitive: verifies the worktree is clean, rebases onto main if it advanced, re-runs `check`, applies the reviewer-blocker gate, ff-merges, then removes the worktree directory and deletes the branch. Pass `--keep` to leave both in place, or `--force-review` to override a blocker artifact.
 
-    **Already-on-branch path:** `ether-forge merge T<n>` does not understand non-`dev-T<n>` branches, so drive git directly:
-    ```bash
-    git checkout main
-    git pull --ff-only origin main
-    git merge --ff-only <branch>
-    git push origin main
-    git branch -d <branch>
-    ```
-    Run `ether-forge check` once after the ff-merge to confirm main is still green. The reviewer-blocker gate is already enforced at commit time by `ether-forge commit`, so the extra gate that `ether-forge merge` runs is not load-bearing here. Remote branch deletion is optional and may be restricted by the harness.
+    **Already-on-branch path:** `ether-forge merge T<n>` also handles this case — when no linked `dev-T<n>` worktree exists, it falls back to an in-place merge of the primary worktree's currently-checked-out branch. The fallback verifies the tree is clean, rebases the branch onto main if it advanced, runs `check`, applies the reviewer-blocker gate, `git checkout main`s, ff-merges, then deletes the branch (honors `--keep`). Remote branch deletion and `git push origin main` are still your responsibility — run them after `ether-forge merge` returns.

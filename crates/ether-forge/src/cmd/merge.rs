@@ -84,7 +84,9 @@ pub(crate) enum Match<'a> {
 }
 
 /// Pick the worktree to merge. With `explicit` set, match by path; otherwise
-/// use the [`Match`] strategy.
+/// use the [`Match`] strategy. The primary worktree (`entries[0]`) is always
+/// skipped so a feature-branch checkout on main never self-matches — the
+/// [`in_place_branch`] fallback handles that case.
 pub(crate) fn resolve_worktree(
     entries: &[WorktreeEntry],
     how: Match<'_>,
@@ -101,8 +103,10 @@ pub(crate) fn resolve_worktree(
             path.display()
         );
     }
+    let primary_path: Option<&Path> = entries.first().map(|e| e.path.as_path());
     let candidates: Vec<&WorktreeEntry> = entries
         .iter()
+        .filter(|e| Some(e.path.as_path()) != primary_path)
         .filter(|e| e.branch.as_deref() != Some("main"))
         .filter(|e| match (&e.branch, &how) {
             (Some(b), Match::TaskId(id)) => {
@@ -128,6 +132,24 @@ pub(crate) fn resolve_worktree(
                 .join(", ")
         )),
     }
+}
+
+/// Fallback for the "already-on-branch" path: when `resolve_worktree` cannot
+/// find a dedicated skill worktree and no `--worktree` override was given,
+/// return the primary worktree's currently checked-out branch if it is a
+/// non-main feature branch. Sessions driven by Claude Code on the Web (and
+/// resumed `/dev` sessions) live on the primary worktree, not on a linked
+/// `dev-T<n>` worktree, so this is where the merge must happen in place.
+///
+/// Returns `None` when the primary worktree is on `main` or in detached HEAD,
+/// in which case the caller should surface the original resolver error.
+pub(crate) fn in_place_branch(entries: &[WorktreeEntry]) -> Option<String> {
+    let first = entries.first()?;
+    let branch = first.branch.as_ref()?;
+    if branch == "main" {
+        return None;
+    }
+    Some(branch.clone())
 }
 
 /// Heuristic: does `target` look like a backlog task id (`T` followed by
@@ -167,7 +189,26 @@ pub fn run(
         .map(|e| e.path.clone())
         .ok_or_else(|| anyhow!("no git worktrees listed"))?;
 
-    let target_entry = resolve_worktree(&entries, how, worktree)?;
+    let target_entry = match resolve_worktree(&entries, how, worktree) {
+        Ok(entry) => entry,
+        Err(err) => {
+            if worktree.is_none() {
+                if let Some(branch) = in_place_branch(&entries) {
+                    println!(
+                        "merge: no linked worktree for {target} — falling back to in-place merge of current branch {branch}"
+                    );
+                    return run_in_place(
+                        &main_path,
+                        &branch,
+                        task_id.as_deref(),
+                        keep,
+                        force_review,
+                    );
+                }
+            }
+            return Err(err);
+        }
+    };
     let target = target_entry;
     let branch = target
         .branch
@@ -282,6 +323,121 @@ pub fn run(
     }
 
     println!("merge: ff-merged {branch} into main and cleaned up worktree");
+    Ok(())
+}
+
+/// Merge the primary worktree's current branch into `main` in place, without
+/// touching any linked worktree. Used when the `/dev` session runs on a
+/// scaffolding branch (Claude Code on the Web, resumed sessions) so the work
+/// lives on the primary worktree itself.
+///
+/// Mirrors the worktree-path flow: clean check → rebase if behind → run
+/// `check` → review gate → `git checkout main` → `git merge --ff-only
+/// <branch>` → delete branch (unless `--keep`).
+pub(crate) fn run_in_place(
+    main_path: &Path,
+    branch: &str,
+    task_id: Option<&str>,
+    keep: bool,
+    force_review: bool,
+) -> Result<()> {
+    if branch == "main" {
+        bail!("refusing to merge main into itself");
+    }
+
+    let status = git_output(main_path, &["status", "--porcelain"])?;
+    if !is_clean(&status) {
+        bail!(
+            "worktree {} is dirty — commit or stash before merging",
+            main_path.display()
+        );
+    }
+
+    let main_head = git_output(main_path, &["rev-parse", "main"])?
+        .trim()
+        .to_string();
+    let merge_base = git_output(main_path, &["merge-base", "HEAD", "main"])?
+        .trim()
+        .to_string();
+    if is_behind(&main_head, &merge_base) {
+        println!("merge: rebasing {branch} onto main");
+        let rebase = Command::new("git")
+            .current_dir(main_path)
+            .args(["rebase", "main"])
+            .status()
+            .context("spawning git rebase")?;
+        if !rebase.success() {
+            bail!(
+                "`git rebase main` failed in {} — resolve conflicts and re-run",
+                main_path.display()
+            );
+        }
+    }
+
+    if std::env::var_os(SKIP_CHECK_ENV).is_none() {
+        let original = std::env::current_dir().context("reading current directory")?;
+        std::env::set_current_dir(main_path)
+            .with_context(|| format!("chdir {}", main_path.display()))?;
+        let result = check::run().context("ether-forge check failed — merge aborted");
+        let _ = std::env::set_current_dir(&original);
+        result?;
+    }
+
+    if let Some(id) = task_id {
+        let artifact_path = review_artifact::artifact_path(&main_path.join("target"), id);
+        let artifact = load_artifact(&artifact_path)?;
+        evaluate_gate(artifact.as_ref(), id, force_review)?;
+    }
+
+    let checkout = Command::new("git")
+        .current_dir(main_path)
+        .args(["checkout", "main"])
+        .status()
+        .context("spawning git checkout main")?;
+    if !checkout.success() {
+        bail!(
+            "`git checkout main` failed in {} — cannot proceed",
+            main_path.display()
+        );
+    }
+
+    let merge = Command::new("git")
+        .current_dir(main_path)
+        .args(["merge", "--ff-only", branch])
+        .status()
+        .context("spawning git merge")?;
+    if !merge.success() {
+        // Attempt to restore the user's working branch so the failure does
+        // not strand them on main with no path back.
+        let _ = Command::new("git")
+            .current_dir(main_path)
+            .args(["checkout", branch])
+            .status();
+        bail!("`git merge --ff-only {branch}` failed — main may have diverged");
+    }
+
+    if keep {
+        println!("merge: ff-merged {branch} into main in place (kept branch)");
+        return Ok(());
+    }
+
+    let del = Command::new("git")
+        .current_dir(main_path)
+        .args(["branch", "-d", branch])
+        .status()
+        .context("spawning git branch -d")?;
+    if !del.success() {
+        let force = Command::new("git")
+            .current_dir(main_path)
+            .args(["branch", "-D", branch])
+            .status()
+            .context("spawning git branch -D")?;
+        if !force.success() {
+            bail!("could not delete branch {branch}");
+        }
+    }
+
+    println!("merge: ff-merged {branch} into main in place and deleted branch");
     Ok(())
 }
 
@@ -444,6 +600,66 @@ mod tests {
             branch: Some("main".to_string()),
         }];
         assert!(resolve_worktree(&entries, Match::TaskId("T38"), None).is_err());
+    }
+
+    #[test]
+    fn resolve_worktree_skips_primary_even_on_feature_branch() {
+        // Regression: when the primary worktree is checked out on a feature
+        // branch whose name happens to claim the task id (e.g. `dev-T38`),
+        // we must NOT self-match. The in-place fallback handles that case.
+        let entries = vec![
+            WorktreeEntry {
+                path: PathBuf::from("/repo"),
+                branch: Some("dev-T38".to_string()),
+            },
+            WorktreeEntry {
+                path: PathBuf::from("/wt-unrelated"),
+                branch: Some("feature-x".to_string()),
+            },
+        ];
+        let err = resolve_worktree(&entries, Match::TaskId("T38"), None).unwrap_err();
+        assert!(format!("{err:#}").contains("no worktree"));
+    }
+
+    #[test]
+    fn in_place_branch_returns_primary_feature_branch() {
+        let entries = vec![
+            WorktreeEntry {
+                path: PathBuf::from("/repo"),
+                branch: Some("claude/dev-environment-setup-gfiMC".to_string()),
+            },
+            WorktreeEntry {
+                path: PathBuf::from("/wt"),
+                branch: Some("dev-T99".to_string()),
+            },
+        ];
+        assert_eq!(
+            in_place_branch(&entries).as_deref(),
+            Some("claude/dev-environment-setup-gfiMC")
+        );
+    }
+
+    #[test]
+    fn in_place_branch_none_when_primary_on_main() {
+        let entries = vec![WorktreeEntry {
+            path: PathBuf::from("/repo"),
+            branch: Some("main".to_string()),
+        }];
+        assert_eq!(in_place_branch(&entries), None);
+    }
+
+    #[test]
+    fn in_place_branch_none_when_primary_detached() {
+        let entries = vec![WorktreeEntry {
+            path: PathBuf::from("/repo"),
+            branch: None,
+        }];
+        assert_eq!(in_place_branch(&entries), None);
+    }
+
+    #[test]
+    fn in_place_branch_none_on_empty_list() {
+        assert_eq!(in_place_branch(&[]), None);
     }
 
     #[test]

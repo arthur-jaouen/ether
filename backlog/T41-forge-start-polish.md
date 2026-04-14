@@ -2,9 +2,7 @@
 id: T41
 title: ether-forge start — polish and skill wiring
 size: M
-status: blocked
-depends_on:
-  - T40
+status: ready
 ---
 
 Follow-up to T40. Harden the `start` subcommand's edge cases and swap the skills over to use it so `start` / `merge` become the bookends of every `/dev`, `/groom`, `/roadmap` session.

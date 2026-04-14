@@ -13,14 +13,12 @@ Shell scripts invoked by the Claude Code harness per the matchers in
 
 ## Implementation notes
 
-`backlog-status.sh` is a thin wrapper that `exec`s `ether-forge status`
-when the binary is on `$PATH`. It keeps an awk-based fallback for cold
-sessions (before the bootstrap hook compiles the workspace) — the fallback
-mirrors `crates/ether-forge/src/cmd/status.rs::render` byte-for-byte so
-swapping between the two paths is invisible. Once the web bootstrap is
-guaranteed to run before SessionStart consumers, the fallback can be
-deleted and the hook collapsed into a direct `ether-forge status`
-invocation in `.claude/settings.json`.
+`backlog-status.sh` is a thin wrapper that `exec`s `ether-forge status`.
+The SessionStart pipeline runs `bootstrap.sh` first (see
+`.claude/settings.json`), which builds and symlinks the binary, so the
+happy path is always the `exec` branch. If bootstrap's build failed, the
+wrapper emits a stub summary rather than hard-failing the SessionStart
+pipeline.
 
 `validate.sh` is still a bash fallback; it will be replaced by
 `ether-forge validate` (after T10).

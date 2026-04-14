@@ -20,6 +20,7 @@ pub mod rewrite;
 pub mod rules;
 pub mod rules_scan;
 pub mod search;
+pub mod start;
 pub mod status;
 pub mod task;
 pub mod validate;

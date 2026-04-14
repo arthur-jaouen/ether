@@ -10,8 +10,8 @@ Entry-side mirror of T38 (`merge`). Ship a working `ether-forge start T<n>` that
 
 ## Sub-steps
 
-- [ ] Add `Start { id }` variant to the clap `Command` enum in `crates/ether-forge/src/main.rs`.
-- [ ] New `crates/ether-forge/src/cmd/start.rs`: load task, assert `status: ready`, reuse `check` + `preflight` logic in-process, create worktree at `.claude/worktrees/dev-T<n>` on branch `worktree-dev-T<n>`, fetch `main`, rebase if behind. Print resolved path + branch + next-step hint.
-- [ ] Unit tests: pure-function predicates (`is_behind_main`, `worktree_exists`) over injected git-runner closures — match the pattern in `preflight.rs` / `merge.rs`.
-- [ ] Integration test under `crates/ether-forge/tests/`: throwaway repo, drive `start T<n>` happy path, assert worktree dir + branch exist and HEAD matches main.
-- [ ] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings` stay green.
+- [x] Add `Start { id }` variant to the clap `Command` enum in `crates/ether-forge/src/main.rs`.
+- [x] New `crates/ether-forge/src/cmd/start.rs`: load task, assert `status: ready`, reuse `check` + `preflight` logic in-process, create worktree at `.claude/worktrees/dev-T<n>` on branch `worktree-dev-T<n>`, fetch `main`, rebase if behind. Print resolved path + branch + next-step hint.
+- [x] Unit tests: pure-function predicates (`is_behind_main`, `worktree_exists`) over injected git-runner closures — match the pattern in `preflight.rs` / `merge.rs`.
+- [x] Integration test under `crates/ether-forge/tests/`: throwaway repo, drive `start T<n>` happy path, assert worktree dir + branch exist and HEAD matches main.
+- [x] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings` stay green.

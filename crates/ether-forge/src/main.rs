@@ -263,6 +263,18 @@ enum Command {
         #[arg(long, default_value = "target")]
         target_root: PathBuf,
     },
+    /// Collapse the `/dev` kickoff dance into one primitive: load the task,
+    /// assert it is `ready`, run `check` + `preflight`, create the skill
+    /// worktree at `.claude/worktrees/dev-T<n>` on branch
+    /// `worktree-dev-T<n>`, then fetch `main` and rebase if the worktree is
+    /// behind. Entry-side mirror of `merge`.
+    Start {
+        /// Task id (e.g. `T40`). Must be in `status: ready`.
+        id: String,
+        /// Backlog directory (defaults to `./backlog`).
+        #[arg(long, default_value_os_t = default_backlog_dir())]
+        backlog_dir: PathBuf,
+    },
     /// Verify workspace is safe to create a skill worktree (clean main, fresh base, no stale claim).
     Preflight {
         /// Task id (optional). When set, also refuses if a branch already claims it.
@@ -390,6 +402,7 @@ fn main() -> anyhow::Result<()> {
             from_stdin,
             target_root,
         }) => cmd::review_artifact::run(&target_root, &task, &blockers, &nits, from_stdin),
+        Some(Command::Start { id, backlog_dir }) => cmd::start::run(&backlog_dir, &id),
         Some(Command::Preflight { task, backlog_dir }) => {
             cmd::preflight::run(&backlog_dir, task.as_deref())
         }

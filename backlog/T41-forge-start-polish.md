@@ -45,6 +45,27 @@ This collapses the `/dev` SKILL.md "Fresh vs already-on-branch" table into
 a single call path — the skill always invokes `ether-forge start …`, and
 the binary decides whether a worktree is needed.
 
+## Design: machine-readable status line
+
+`ether-forge start` cannot tell the harness to switch its tool target — only
+`EnterWorktree` can do that. So the skill still has to decide, after each
+`start` call, whether to follow up with `EnterWorktree`. To avoid prose-
+matching English output or duplicating the "does the dir exist?" logic, each
+`start` invocation emits a final stable sentinel line on stdout:
+
+```
+start: mode=created path=<absolute-path> branch=<branch-name>
+```
+or
+```
+start: mode=in-place branch=<current-branch>
+```
+
+Skills grep for `mode=created` to decide whether to call `EnterWorktree`.
+The sentinel is the contract — every other stdout line is human-readable and
+may change without breaking callers. Unit-test the two emission paths so the
+format can't drift.
+
 ## Sub-steps
 
 - [ ] `--branch <name>` mode in `crates/ether-forge/src/cmd/start.rs`: factor
@@ -54,12 +75,19 @@ the binary decides whether a worktree is needed.
 - [ ] **In-place fallback**: before attempting `git worktree add`, inspect
   `git worktree list --porcelain`. If the primary entry's branch is a
   non-main feature branch, short-circuit to the in-place path: run preflight
-  (no claim check), run `check`, print `start: already on <branch>, skipping
-  worktree creation`, return `Ok(())`. Reuse `cmd::merge::in_place_branch` as
-  the shared pure predicate (move it to a neutral helper module if either
-  crate grows a third caller). Refuses with a clear error if the current
-  branch name conflicts with the requested task id or `--branch` value
-  (e.g. `start T40` on `dev-T17` should not silently succeed).
+  (no claim check), run `check`, emit the `mode=in-place` sentinel (see
+  below), return `Ok(())`. Reuse `cmd::merge::in_place_branch` as the shared
+  pure predicate (move it to a neutral helper module if either crate grows a
+  third caller). Refuses with a clear error if the current branch name
+  conflicts with the requested task id or `--branch` value (e.g. `start T40`
+  on `dev-T17` should not silently succeed).
+- [ ] **Status-line sentinel**: emit exactly one final stdout line per
+  invocation in the stable machine-readable format
+  `start: mode=created path=<abs> branch=<name>` (happy path) or
+  `start: mode=in-place branch=<name>` (fallback). Factor into a tiny helper
+  so both paths call the same formatter; unit-test both emission shapes by
+  capturing stdout. This is the contract the three skills rely on for
+  conditional `EnterWorktree` dispatch.
 - [ ] `--keep-existing` flag: if the target worktree dir already exists on
   disk, reuse it (`git worktree add` becomes a no-op verification) instead of
   erroring. Applies to both modes — handles the rerun-after-interruption case.
@@ -82,29 +110,42 @@ the binary decides whether a worktree is needed.
 - [ ] Regression test (conflict): on branch `dev-T17`, run `ether-forge start
   T40` — must refuse with a clear "current branch does not claim T40" error
   rather than silently no-opping.
+- [ ] Regression test (sentinel format): unit-test the status-line helper
+  directly for both shapes (`mode=created path=… branch=…` and
+  `mode=in-place branch=…`) AND assert the integration-test stdout from at
+  least one happy-path case and one in-place case ends with the expected
+  sentinel. The format is a load-bearing contract for the three skills, so
+  breaking it must fail tests.
 - [ ] Update `.claude/skills/dev/SKILL.md` startup section: replace the
   `get` + `check` + `preflight` + `EnterWorktree` + fetch/rebase sequence
   (steps 8–10 in the "Fresh" state) with a single `ether-forge start T<n>`
-  call. **Collapse the "Fresh vs already-on-branch" table**: the skill now
-  always calls `start T<n>`; the binary decides. `EnterWorktree dev-T<n>`
-  happens only if `start` actually created one (detect via stdout or by
-  checking `.claude/worktrees/dev-T<n>` after the call).
+  call followed by a conditional `EnterWorktree dev-T<n>` that fires only
+  when the `start` stdout ends with `mode=created`. **Delete the "Fresh vs
+  already-on-branch" session-layout table** at the top of SKILL.md — the
+  skill now has one call path and the binary's sentinel decides. Also
+  delete the stale "Skip if already on a feature branch" prose in the
+  preflight guidance.
 - [ ] Update `.claude/skills/groom/SKILL.md` kickoff: replace step 10's
-  `ether-forge preflight` + manual `git worktree add` with
-  `ether-forge start --branch groom-$(date +%Y-%m-%d)`. Remove the "skip if
-  already inside a worktree" prose — `start` absorbs that decision.
-- [ ] Update `.claude/skills/roadmap/SKILL.md` kickoff: replace step 10 with
-  `ether-forge start --branch roadmap-$(date +%Y-%m-%d)`. Remove the same
-  prose.
+  `ether-forge preflight` with
+  `ether-forge start --branch groom-$(date +%Y-%m-%d)`, and rewrite step 11
+  so `EnterWorktree groom-<date>` is called only when the `start` output
+  contained `mode=created`. Delete the "skip if already inside a worktree"
+  prose in both steps — the sentinel absorbs that decision. Keep the rest
+  of the session shape (apply auto-fixes, validate, commit) untouched.
+- [ ] Update `.claude/skills/roadmap/SKILL.md` kickoff: identical rewrite
+  with `ether-forge start --branch roadmap-$(date +%Y-%m-%d)` and a
+  conditional `EnterWorktree roadmap-<date>` in step 11.
 - [ ] `cargo test --workspace` and `cargo clippy --workspace -- -D warnings`
   stay green.
 
 ## Splittability note
 
-This is L because it touches 2 Rust files + 3 skill docs and adds 6 new
-regression tests. A future groomer may split it into T41a (Rust: dual-mode +
-in-place fallback + `--keep-existing` + all regression tests) and T41b
-(skill-wiring docs for `/dev`, `/groom`, `/roadmap`), with T41b depending on
-T41a. Kept as one task for now so the `start`/`merge` symmetry and the
-skill-side table collapse land atomically — a half-migrated skill fleet is a
-worse intermediate state than a single larger landing.
+This is L because it touches 2 Rust files + 3 skill docs and adds 7 new
+regression tests (including the sentinel-format lock-in). A future groomer
+may split it into T41a (Rust: dual-mode + in-place fallback + sentinel
+helper + `--keep-existing` + all regression tests) and T41b (skill-wiring
+docs for `/dev`, `/groom`, `/roadmap` — each gaining a conditional
+`EnterWorktree` call gated on the `mode=created` sentinel), with T41b
+depending on T41a. Kept as one task for now so the `start`/`merge` symmetry
+and the skill-side table collapse land atomically — a half-migrated skill
+fleet is a worse intermediate state than a single larger landing.
